@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>Tetris Solo</title>
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+</head>
+<body class="bg-white flex justify-center items-center min-h-screen">
+  <div class="flex gap-6">
+    <!-- 테트리스 게임 보드 -->
+    <canvas id="game-board" class="bg-black"></canvas>
+
+    <!-- 정보 표시 -->
+    <div class="flex flex-col justify-start text-green-500 text-2xl space-y-4">
+      <div><strong>이름</strong></div>
+      <div>점수: 0</div>
+      <div>남은 시간: 0sec</div>
+      <button onclick="play()" class="bg-green-500 text-white px-4 py-2 rounded-md">Play</button>
+    </div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('game-board');
+    const ctx = canvas.getContext('2d');
+
+    // 보드 크기
+    const cols = 10;
+    const rows = 15;
+
+    // 화면에 맞게 vh 기반 블럭 크기 계산
+    const blockSize = window.innerHeight * 0.06; // 6vh
+    canvas.width = cols * blockSize;
+    canvas.height = rows * blockSize;
+
+    // scale 적용: 이제부터 1x1 그리면 blockSize x blockSize로 보임
+    ctx.scale(blockSize, blockSize);
+
+    // 격자 그리기
+    function drawBoard() {
+      ctx.strokeStyle = '#444';
+      ctx.lineWidth = 0.05; // 얇은 선
+
+      for (let r = 0; r <= rows; r++) {
+        ctx.beginPath();
+        ctx.moveTo(0, r);
+        ctx.lineTo(cols, r);
+        ctx.stroke();
+      }
+
+      for (let c = 0; c <= cols; c++) {
+        ctx.beginPath();
+        ctx.moveTo(c, 0);
+        ctx.lineTo(c, rows);
+        ctx.stroke();
+      }
+    }
+
+    function play() {
+      console.log('play');
+    }
+
+    drawBoard();
+
+
+  </script>
+</body>
+</html>
