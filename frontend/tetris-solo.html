@@ -115,16 +115,43 @@
     }
 
     function moveBlock(dx, dy) {
-      gameState.currentBlock.x += dx;
-      gameState.currentBlock.y += dy;
-      render();
+
+      const block = gameState.currentBlock;
+      const newX = block.x + dx;
+      const newY = block.y + dy;
+
+      if (!isCollision(gameState.grid, block, newX, newY)) {
+        block.x = newX;
+        block.y = newY;
+        render();
+      }
     }
+
+    function isCollision(grid, block, nextX, nextY) {
+      const shape = block.shape;
+
+      return !shape.every((row, y) => {
+        return row.every((value, x) => {
+          if (value === 0) return true;
+
+          const newX = nextX + x;
+          const newY = nextY + y;
+
+          const insideBoard = newX >= 0 && newX < COLS && newY < ROWS;
+          const notBlocked = newY < 0 || grid[newY][newX] === 0;
+
+          return insideBoard && notBlocked;
+        });
+      });
+    }
+
+
 
     function handleKeyDown(e) {
       const move = MOVES[e.keyCode];
       if (move) {
         e.preventDefault();
-        moveBlock(move.dx, move.dy);
+          moveBlock(move.dx, move.dy);
       }
     }
 
