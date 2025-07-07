@@ -7,61 +7,137 @@
 </head>
 <body class="bg-white flex justify-center items-center min-h-screen">
   <div class="flex gap-6">
-    <!-- 테트리스 게임 보드 -->
     <canvas id="game-board" class="bg-black"></canvas>
-
-    <!-- 정보 표시 -->
     <div class="flex flex-col justify-start text-green-500 text-2xl space-y-4">
       <div><strong>이름</strong></div>
-      <div>점수: 0</div>
-      <div>남은 시간: 0sec</div>
-      <button onclick="play()" class="bg-green-500 text-white px-4 py-2 rounded-md">Play</button>
+      <div id="score">점수: 0</div>
+      <div id="time">남은 시간: 0sec</div>
+      <button id="play-btn" class="bg-green-500 text-white px-4 py-2 rounded-md">Play</button>
     </div>
   </div>
 
   <script>
-    const canvas = document.getElementById('game-board');
-    const ctx = canvas.getContext('2d');
+    const COLS = 10;
+    const ROWS = 15;
+    const BLOCK_SIZE = window.innerHeight * 0.06; // 6vh
 
-    // 보드 크기
-    const cols = 10;
-    const rows = 15;
+    const KEY = {
+      LEFT: 37,
+      RIGHT: 39,
+      DOWN: 40
+    };
+    Object.freeze(KEY);
 
-    // 화면에 맞게 vh 기반 블럭 크기 계산
-    const blockSize = window.innerHeight * 0.06; // 6vh
-    canvas.width = cols * blockSize;
-    canvas.height = rows * blockSize;
+    const MOVES = {
+      [KEY.LEFT]: { dx: -1, dy: 0 },
+      [KEY.RIGHT]: { dx: 1, dy: 0 },
+      [KEY.DOWN]: { dx: 0, dy: 1 }
+    };
 
-    // scale 적용: 이제부터 1x1 그리면 blockSize x blockSize로 보임
-    ctx.scale(blockSize, blockSize);
+    // 게임 상태 객체
+    const gameState = {
+      canvas: document.getElementById('game-board'),
+      ctx: null,
+      grid: [],
+      currentBlock: null
+    };
+
+    function setupCanvas() {
+      const canvas = gameState.canvas;
+      canvas.width = COLS * BLOCK_SIZE;
+      canvas.height = ROWS * BLOCK_SIZE;
+
+      const ctx = canvas.getContext('2d');
+      ctx.scale(BLOCK_SIZE, BLOCK_SIZE);
+      gameState.ctx = ctx;
+    }
+
+    function createEmptyBoard() {
+      return Array.from({ length: ROWS }, () => Array(COLS).fill(0));
+    }
+
+    function clearCanvas() {
+      gameState.ctx.clearRect(0, 0, COLS, ROWS);
+    }
 
     // 격자 그리기
-    function drawBoard() {
+    function drawGrid() {
+      const ctx = gameState.ctx;
       ctx.strokeStyle = '#444';
-      ctx.lineWidth = 0.05; // 얇은 선
+      ctx.lineWidth = 0.05;
 
-      for (let r = 0; r <= rows; r++) {
+      for (let r = 0; r <= ROWS; r++) {
         ctx.beginPath();
         ctx.moveTo(0, r);
-        ctx.lineTo(cols, r);
+        ctx.lineTo(COLS, r);
         ctx.stroke();
       }
 
-      for (let c = 0; c <= cols; c++) {
+      for (let c = 0; c <= COLS; c++) {
         ctx.beginPath();
         ctx.moveTo(c, 0);
-        ctx.lineTo(c, rows);
+        ctx.lineTo(c, ROWS);
         ctx.stroke();
       }
     }
 
-    function play() {
-      console.log('play');
+    function drawBlock(block) {
+      const ctx = gameState.ctx;
+      ctx.fillStyle = block.color;
+      block.shape.forEach((row, y) => {
+        row.forEach((value, x) => {
+          if (value > 0) {
+            ctx.fillRect(block.x + x, block.y + y, 1, 1);
+          }
+        });
+      });
     }
 
-    drawBoard();
+    function render() {
+      clearCanvas();
+      drawGrid();
+      if (gameState.currentBlock) {
+        drawBlock(gameState.currentBlock);
+      }
+    }
 
+    function createBlock() {
+      return {
+        x: 3,
+        y: 0,
+        color: 'red',
+        shape: [
+          [2, 0, 0],
+          [2, 2, 2],
+          [0, 0, 0]
+        ]
+      };
+    }
 
+    function moveBlock(dx, dy) {
+      gameState.currentBlock.x += dx;
+      gameState.currentBlock.y += dy;
+      render();
+    }
+
+    function handleKeyDown(e) {
+      const move = MOVES[e.keyCode];
+      if (move) {
+        e.preventDefault();
+        moveBlock(move.dx, move.dy);
+      }
+    }
+
+    function startGame() {
+      gameState.grid = createEmptyBoard();
+      gameState.currentBlock = createBlock();
+      render();
+    }
+    
+    setupCanvas();
+    drawGrid();
+    document.addEventListener('keydown', handleKeyDown);
+    document.getElementById('play-btn').addEventListener('click', startGame);
   </script>
 </body>
 </html>
