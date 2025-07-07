@@ -127,8 +127,32 @@
       }
     }
 
-    function isCollision(grid, block, nextX, nextY) {
-      const shape = block.shape;
+    function rotate(shape) {
+      const N = shape.length;
+      const result = Array.from({ length: N }, () => Array(N).fill(0));
+
+      for (let y = 0; y < N; y++) {
+        for (let x = 0; x < N; x++) {
+          result[x][N - 1 - y] = shape[y][x];
+        }
+      }
+
+      return result;
+    }
+
+    function rotateBlock() {
+      const block = gameState.currentBlock;
+      const rotatedShape = rotate(block.shape);
+
+      // 회전된 모양이 충돌하지 않으면 적용
+      if (!isCollision(gameState.grid, block, block.x, block.y, rotatedShape)) {
+        block.shape = rotatedShape;
+        render();
+      }
+    }
+
+    function isCollision(grid, block, nextX, nextY, nextShape) {
+      const shape = nextShape || block.shape;
 
       return !shape.every((row, y) => {
         return row.every((value, x) => {
@@ -145,13 +169,14 @@
       });
     }
 
-
-
     function handleKeyDown(e) {
       const move = MOVES[e.keyCode];
       if (move) {
         e.preventDefault();
           moveBlock(move.dx, move.dy);
+      } else if (e.keyCode === 38) {
+        e.preventDefault();
+        rotateBlock();
       }
     }
 
