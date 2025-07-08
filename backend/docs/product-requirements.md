@@ -92,8 +92,11 @@ Jungle Tetris - 멀티플레이어 테트리스 게임
 
 **기능 설명**: 1대1 대전을 위한 게임 룸 생성
 
-- **방 설정 옵션**:
-  - 방 제목: 1-30자, 특수문자 제한
+- **인증 방식**:
+  - JWT 액세스 토큰에서 사용자 정보 추출
+  - 요청 바디 불필요, 토큰만으로 방 생성
+- **자동 생성**:
+  - 방 번호: 시스템에서 자동 할당
 - **방 관리**:
   - 방장 권한 (게임 시작, 방 설정 변경, 강제 퇴장)
   - 최대 인원: 2명 (방장 + 참가자 1명)
@@ -195,9 +198,6 @@ Jungle Tetris - 멀티플레이어 테트리스 게임
   user_id: String,            // 플레이어 ID
   game_type: String,          // "solo" | "versus"
   score: Number,              // 획득 점수
-  level: Number,              // 도달 레벨
-  lines_cleared: Number,      // 제거한 라인 수
-  play_time: Number,          // 플레이 시간(초) - 최대 60초
   opponent_id: String,        // 대전 상대 ID (versus만)
   is_winner: Boolean,         // 승리 여부 (versus만)
   played_at: Date            // 게임 플레이 일시
@@ -209,8 +209,7 @@ Jungle Tetris - 멀티플레이어 테트리스 게임
 ```javascript
 {
   _id: ObjectId,
-  room_id: String(unique),    // 방 번호 (사용자 입력용)
-  room_title: String,         // 방 제목
+  room_id: Number(unique),    // 방 번호 (사용자 입력용)
   host_id: String,           // 방장 ID
   status: String,            // "waiting" | "playing" | "finished"
   players: Array,            // 참가자 목록
@@ -243,7 +242,7 @@ Jungle Tetris - 멀티플레이어 테트리스 게임
 
 ### 5.2 방 관리 API
 
-- `POST /api/rooms` - 방 생성
+- `POST /api/rooms` - 방 생성 (JWT 토큰 기반)
 - `POST /api/rooms/join` - 방 참가 (방 번호로)
 - `DELETE /api/rooms/:id` - 방 삭제
 
@@ -268,26 +267,26 @@ Jungle Tetris - 멀티플레이어 테트리스 게임
 
   ```javascript
   // 클라이언트 → 서버
-  { room_id: "room123", user_name: "홍길동" }
+  { room_id: 123, user_name: "홍길동" }
 
   // 서버 → 클라이언트 (방 내 모든 사용자)
-  { room_id: "room123", user_name: "홍길동", message: "홍길동님이 방에 참가했습니다" }
+  { room_id: 123, user_name: "홍길동", message: "홍길동님이 방에 참가했습니다" }
   ```
 
 - `room:leave` - 방 나가기
 
   ```javascript
   // 클라이언트 → 서버
-  { room_id: "room123", user_name: "홍길동" }
+  { room_id: 123, user_name: "홍길동" }
 
   // 서버 → 클라이언트 (방 내 모든 사용자)
-  { room_id: "room123", user_name: "홍길동", message: "홍길동님이 방을 나갔습니다" }
+  { room_id: 123, user_name: "홍길동", message: "홍길동님이 방을 나갔습니다" }
   ```
 
 - `room:update` - 방 정보 업데이트
   ```javascript
   // 서버 → 클라이언트
-  { room_id: "room123", status: "waiting", players: ["홍길동", "김철수"] }
+  { room_id: 123, status: "waiting", players: ["홍길동", "김철수"] }
   ```
 
 ### 6.2 게임 이벤트
@@ -297,7 +296,7 @@ Jungle Tetris - 멀티플레이어 테트리스 게임
   ```javascript
   // 서버 → 클라이언트 (방 내 모든 사용자)
   {
-    room_id: "room123",
+    room_id: 123,
     players: [
       { name: "홍길동", score: 0 },
       { name: "김철수", score: 0 }
@@ -310,11 +309,11 @@ Jungle Tetris - 멀티플레이어 테트리스 게임
 
   ```javascript
   // 클라이언트 → 서버
-  { room_id: "room123", user_name: "홍길동", score: 1500 }
+  { room_id: 123, user_name: "홍길동", score: 1500 }
 
   // 서버 → 클라이언트 (방 내 모든 사용자)
   {
-    room_id: "room123",
+    room_id: 123,
     players: [
       { name: "홍길동", score: 1500 },
       { name: "김철수", score: 800 }
@@ -326,11 +325,11 @@ Jungle Tetris - 멀티플레이어 테트리스 게임
 
   ```javascript
   // 클라이언트 → 서버
-  { room_id: "room123", user_name: "홍길동", final_score: 2500 }
+  { room_id: 123, user_name: "홍길동", final_score: 2500 }
 
   // 서버 → 클라이언트 (방 내 모든 사용자)
   {
-    room_id: "room123",
+    room_id: 123,
     game_over: true,
     winner: "김철수",
     loser: "홍길동",
@@ -345,7 +344,7 @@ Jungle Tetris - 멀티플레이어 테트리스 게임
   ```javascript
   // 서버 → 클라이언트 (상대방에게)
   {
-    room_id: "room123",
+    room_id: 123,
     disconnected_player: "홍길동",
     message: "상대방의 연결이 끊어졌습니다. 잠시 후 재연결을 시도합니다.",
     wait_time: 30
