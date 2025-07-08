@@ -1,0 +1,826 @@
+openapi: 3.0.3
+info:
+  title: Jungle Tetris API
+  description: 실시간 대전 및 랭킹 시스템이 포함된 웹 기반 테트리스 게임 API
+  version: 1.3.0
+  contact:
+    name: Jungle Tetris Team
+    email: "support@jungletetris.com"
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:5000
+    description: 개발 서버
+  - url: https://api.jungletetris.com
+    description: 프로덕션 서버
+
+security:
+  - BearerAuth: []
+
+paths:
+  # 인증 API
+  /api/auth/register:
+    post:
+      tags:
+        - Authentication
+      summary: 회원가입
+      description: 새로운 사용자 계정을 생성합니다
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - user_id
+                - name
+                - password
+                - password_confirm
+              properties:
+                user_id:
+                  type: string
+                  minLength: 5
+                  maxLength: 20
+                  pattern: "^[a-zA-Z0-9]+$"
+                  description: 로그인 ID (5-20자, 영문 및 숫자 조합)
+                  example: "user123"
+                name:
+                  type: string
+                  minLength: 2
+                  maxLength: 10
+                  description: 사용자 이름 (2-10자, 한글/영문 허용)
+                  example: "홍길동"
+                password:
+                  type: string
+                  minLength: 8
+                  maxLength: 20
+                  description: 비밀번호 (8-20자, 영문/숫자/특수문자 포함)
+                  example: "Password123!"
+                password_confirm:
+                  type: string
+                  description: 비밀번호 확인
+                  example: "Password123!"
+      responses:
+        "201":
+          description: 회원가입 성공
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "회원가입이 완료되었습니다"
+                  user_id:
+                    type: string
+                    example: "user123"
+                  access_token:
+                    type: string
+                    example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                  refresh_token:
+                    type: string
+                    example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /api/auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: 로그인
+      description: 기존 사용자 계정으로 로그인합니다
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - user_id
+                - password
+              properties:
+                user_id:
+                  type: string
+                  description: 로그인 ID
+                  example: "user123"
+                password:
+                  type: string
+                  description: 비밀번호
+                  example: "Password123!"
+      responses:
+        "200":
+          description: 로그인 성공
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "로그인되었습니다"
+                  user_id:
+                    type: string
+                    example: "user123"
+                  name:
+                    type: string
+                    example: "홍길동"
+                  access_token:
+                    type: string
+                    example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                  refresh_token:
+                    type: string
+                    example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/auth/logout:
+    post:
+      tags:
+        - Authentication
+      summary: 로그아웃
+      description: 사용자 세션을 종료하고 리프레시 토큰을 무효화합니다
+      responses:
+        "200":
+          description: 로그아웃 성공
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "로그아웃되었습니다"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/auth/refresh:
+    post:
+      tags:
+        - Authentication
+      summary: 토큰 갱신
+      description: 리프레시 토큰을 이용해 새로운 액세스 토큰을 발급받습니다
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - refresh_token
+              properties:
+                refresh_token:
+                  type: string
+                  description: 리프레시 토큰
+                  example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+      responses:
+        "200":
+          description: 토큰 갱신 성공
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  access_token:
+                    type: string
+                    example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                  message:
+                    type: string
+                    example: "토큰이 갱신되었습니다"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/auth/profile:
+    get:
+      tags:
+        - Authentication
+      summary: 사용자 프로필 조회
+      description: 현재 로그인한 사용자의 프로필 정보를 조회합니다
+      responses:
+        "200":
+          description: 프로필 조회 성공
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user_id:
+                    type: string
+                    example: "user123"
+                  name:
+                    type: string
+                    example: "홍길동"
+                  created_at:
+                    type: string
+                    format: date-time
+                    example: "2025-07-08T10:30:00Z"
+                  last_login:
+                    type: string
+                    format: date-time
+                    example: "2025-07-08T15:45:00Z"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  # 방 관리 API
+  /api/rooms:
+    post:
+      tags:
+        - Rooms
+      summary: 방 생성
+      description: 1대1 대전을 위한 게임 룸을 생성합니다
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - room_title
+              properties:
+                room_title:
+                  type: string
+                  minLength: 1
+                  maxLength: 30
+                  description: 방 제목 (1-30자, 특수문자 제한)
+                  example: "홍길동의 방"
+      responses:
+        "201":
+          description: 방 생성 성공
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  room_id:
+                    type: string
+                    example: "room123"
+                  room_title:
+                    type: string
+                    example: "홍길동의 방"
+                  host_id:
+                    type: string
+                    example: "user123"
+                  status:
+                    type: string
+                    enum: [waiting, playing, finished]
+                    example: "waiting"
+                  players:
+                    type: array
+                    items:
+                      type: string
+                    example: ["홍길동"]
+                  created_at:
+                    type: string
+                    format: date-time
+                    example: "2025-07-08T16:00:00Z"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/rooms/join:
+    post:
+      tags:
+        - Rooms
+      summary: 방 참가
+      description: 방 번호를 입력하여 방에 참가합니다
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - room_id
+              properties:
+                room_id:
+                  type: string
+                  description: 참가할 방 번호
+                  example: "room123"
+      responses:
+        "200":
+          description: 방 참가 성공
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "방에 참가했습니다"
+                  room_id:
+                    type: string
+                    example: "room123"
+                  room_title:
+                    type: string
+                    example: "홍길동의 방"
+                  players:
+                    type: array
+                    items:
+                      type: string
+                    example: ["홍길동", "김철수"]
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/rooms/{id}:
+    delete:
+      tags:
+        - Rooms
+      summary: 방 삭제
+      description: 방장이 방을 삭제합니다
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: 방 ID
+          example: "room123"
+      responses:
+        "200":
+          description: 방 삭제 성공
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "방이 삭제되었습니다"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # 게임 API
+  /api/game/solo/start:
+    post:
+      tags:
+        - Game
+      summary: 솔로 게임 시작
+      description: 단독 플레이 모드의 테트리스 게임을 시작합니다
+      responses:
+        "200":
+          description: 솔로 게임 시작 성공
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  game_id:
+                    type: string
+                    example: "game_12345"
+                  game_time:
+                    type: integer
+                    description: 게임 시간 (초)
+                    example: 60
+                  message:
+                    type: string
+                    example: "솔로 게임이 시작되었습니다"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/game/solo/end:
+    post:
+      tags:
+        - Game
+      summary: 솔로 게임 종료
+      description: 솔로 게임의 최종 결과를 서버에 전송합니다
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - game_id
+                - score
+                - level
+                - lines_cleared
+                - play_time
+              properties:
+                game_id:
+                  type: string
+                  example: "game_12345"
+                score:
+                  type: integer
+                  minimum: 0
+                  description: 획득 점수
+                  example: 2500
+                level:
+                  type: integer
+                  minimum: 1
+                  description: 도달 레벨
+                  example: 5
+                lines_cleared:
+                  type: integer
+                  minimum: 0
+                  description: 제거한 라인 수
+                  example: 25
+                play_time:
+                  type: integer
+                  minimum: 0
+                  maximum: 60
+                  description: 플레이 시간 (초, 최대 60초)
+                  example: 60
+      responses:
+        "200":
+          description: 솔로 게임 종료 성공
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "게임 결과가 저장되었습니다"
+                  final_score:
+                    type: integer
+                    example: 2500
+                  personal_best:
+                    type: boolean
+                    description: 개인 최고 기록 여부
+                    example: true
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/game/versus/start:
+    post:
+      tags:
+        - Game
+      summary: 대전 게임 시작
+      description: 1대1 대전 모드의 테트리스 게임을 시작합니다
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - room_id
+              properties:
+                room_id:
+                  type: string
+                  description: 방 ID
+                  example: "room123"
+      responses:
+        "200":
+          description: 대전 게임 시작 성공
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  game_id:
+                    type: string
+                    example: "versus_12345"
+                  room_id:
+                    type: string
+                    example: "room123"
+                  game_time:
+                    type: integer
+                    description: 게임 시간 (초)
+                    example: 60
+                  players:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        name:
+                          type: string
+                        score:
+                          type: integer
+                    example:
+                      - name: "홍길동"
+                        score: 0
+                      - name: "김철수"
+                        score: 0
+                  message:
+                    type: string
+                    example: "대전 게임이 시작되었습니다"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/game/versus/end:
+    post:
+      tags:
+        - Game
+      summary: 대전 게임 종료
+      description: 대전 게임의 최종 결과를 서버에 전송합니다
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - game_id
+                - room_id
+                - score
+                - level
+                - lines_cleared
+                - play_time
+              properties:
+                game_id:
+                  type: string
+                  example: "versus_12345"
+                room_id:
+                  type: string
+                  example: "room123"
+                score:
+                  type: integer
+                  minimum: 0
+                  description: 획득 점수
+                  example: 3200
+                level:
+                  type: integer
+                  minimum: 1
+                  description: 도달 레벨
+                  example: 6
+                lines_cleared:
+                  type: integer
+                  minimum: 0
+                  description: 제거한 라인 수
+                  example: 32
+                play_time:
+                  type: integer
+                  minimum: 0
+                  maximum: 60
+                  description: 플레이 시간 (초, 최대 60초)
+                  example: 60
+      responses:
+        "200":
+          description: 대전 게임 종료 성공
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "게임 결과가 저장되었습니다"
+                  is_winner:
+                    type: boolean
+                    description: 승리 여부
+                    example: true
+                  final_scores:
+                    type: object
+                    description: 최종 점수 정보
+                    properties:
+                      player1:
+                        type: object
+                        properties:
+                          name:
+                            type: string
+                          score:
+                            type: integer
+                      player2:
+                        type: object
+                        properties:
+                          name:
+                            type: string
+                          score:
+                            type: integer
+                    example:
+                      player1:
+                        name: "홍길동"
+                        score: 3200
+                      player2:
+                        name: "김철수"
+                        score: 2800
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # 랭킹 API
+  /api/ranking/score:
+    get:
+      tags:
+        - Ranking
+      summary: 점수 랭킹 조회
+      description: 전체 사용자 중 최고 점수 TOP 100을 조회합니다
+      security: []
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 100
+          description: 조회할 랭킹 수 (기본값 100)
+      responses:
+        "200":
+          description: 점수 랭킹 조회 성공
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  rankings:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        rank:
+                          type: integer
+                          description: 순위
+                          example: 1
+                        user_name:
+                          type: string
+                          description: 사용자명
+                          example: "홍길동"
+                        score:
+                          type: integer
+                          description: 최고 점수
+                          example: 5000
+                        played_at:
+                          type: string
+                          format: date-time
+                          description: 달성 일시
+                          example: "2025-07-08T14:30:00Z"
+                  total_count:
+                    type: integer
+                    description: 전체 랭킹 수
+                    example: 50
+
+  /api/ranking/wins:
+    get:
+      tags:
+        - Ranking
+      summary: 승리 횟수 랭킹 조회
+      description: 대전 모드 승리 횟수 TOP 100을 조회합니다
+      security: []
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 100
+          description: 조회할 랭킹 수 (기본값 100)
+      responses:
+        "200":
+          description: 승리 횟수 랭킹 조회 성공
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  rankings:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        rank:
+                          type: integer
+                          description: 순위
+                          example: 1
+                        user_name:
+                          type: string
+                          description: 사용자명
+                          example: "김철수"
+                        wins:
+                          type: integer
+                          description: 승리 횟수
+                          example: 25
+                        total_games:
+                          type: integer
+                          description: 총 경기 수
+                          example: 40
+                  total_count:
+                    type: integer
+                    description: 전체 랭킹 수
+                    example: 30
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  responses:
+    BadRequest:
+      description: 잘못된 요청
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+                example: "유효성 검증 실패"
+              message:
+                type: string
+                example: "입력 데이터를 확인해주세요"
+              details:
+                type: array
+                items:
+                  type: string
+                example:
+                  ["아이디는 5-20자여야 합니다", "비밀번호가 일치하지 않습니다"]
+
+    Unauthorized:
+      description: 인증 실패
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+                example: "인증 실패"
+              message:
+                type: string
+                example: "유효하지 않은 토큰입니다"
+
+    Forbidden:
+      description: 권한 없음
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+                example: "권한 없음"
+              message:
+                type: string
+                example: "방장만 이 작업을 수행할 수 있습니다"
+
+    NotFound:
+      description: 리소스를 찾을 수 없음
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+                example: "리소스 없음"
+              message:
+                type: string
+                example: "요청한 방을 찾을 수 없습니다"
+
+    Conflict:
+      description: 중복된 리소스
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+                example: "중복 오류"
+              message:
+                type: string
+                example: "이미 사용 중인 아이디입니다"
+
+    InternalServerError:
+      description: 서버 내부 오류
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+                example: "서버 오류"
+              message:
+                type: string
+                example: "서버에서 오류가 발생했습니다. 잠시 후 다시 시도해주세요"
+
+tags:
+  - name: Authentication
+    description: 사용자 인증 관련 API
+  - name: Rooms
+    description: 방 관리 관련 API
+  - name: Game
+    description: 게임 플레이 관련 API
+  - name: Ranking
+    description: 랭킹 조회 관련 API
