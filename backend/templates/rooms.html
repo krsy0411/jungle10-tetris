@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="ko">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>방 목록 - Jungle Tetris</title>
+		<script src="https://cdn.tailwindcss.com"></script>
+		<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+	</head>
+	<body class="bg-gray-100 min-h-screen">
+		<!-- 네비게이션 헤더 -->
+		<nav class="bg-blue-600 text-white p-4 shadow-lg">
+			<div class="container mx-auto flex justify-between items-center">
+				<h1 class="text-2xl font-bold">🎮 Jungle Tetris</h1>
+				<div class="flex items-center space-x-4">
+					<span class="text-blue-100">{{ user_name }}님 환영합니다!</span>
+					<a
+						href="{{ url_for('main.main') }}"
+						class="bg-blue-700 hover:bg-blue-800 px-4 py-2 rounded transition duration-200"
+					>
+						메인으로
+					</a>
+					<a
+						href="{{ url_for('main.ranking') }}"
+						class="bg-blue-700 hover:bg-blue-800 px-4 py-2 rounded transition duration-200"
+					>
+						랭킹
+					</a>
+					<form
+						method="POST"
+						action="{{ url_for('main.logout') }}"
+						class="inline"
+					>
+						<button
+							type="submit"
+							class="bg-red-600 hover:bg-red-700 px-4 py-2 rounded transition duration-200"
+						>
+							로그아웃
+						</button>
+					</form>
+				</div>
+			</div>
+		</nav>
+
+		<div class="container mx-auto px-4 py-8">
+			<!-- 플래시 메시지 -->
+			{% with messages = get_flashed_messages() %} {% if messages %}
+			<div class="mb-6">
+				{% for message in messages %}
+				<div
+					class="bg-blue-100 border border-blue-400 text-blue-700 px-4 py-3 rounded mb-2"
+				>
+					{{ message }}
+				</div>
+				{% endfor %}
+			</div>
+			{% endif %} {% endwith %}
+
+			<div class="max-w-6xl mx-auto">
+				<!-- 페이지 제목 -->
+				<h2 class="text-3xl font-bold text-gray-800 mb-8 text-center">
+					🏠 게임 방 목록
+				</h2>
+
+				<!-- 방 생성 버튼 -->
+				<div class="mb-6 text-center">
+					<button
+						id="createRoomBtn"
+						class="bg-green-600 hover:bg-green-700 text-white text-lg font-bold px-8 py-3 rounded-lg transition duration-200 shadow-lg"
+					>
+						+ 새 방 만들기
+					</button>
+				</div>
+
+				<!-- 방 목록 -->
+				<div class="bg-white rounded-lg shadow-lg p-6">
+					<h3 class="text-xl font-semibold text-gray-800 mb-4">
+						🔍 대기 중인 방들
+					</h3>
+
+					<!-- 방 목록 테이블 -->
+					<div class="overflow-x-auto">
+						<table class="w-full table-auto">
+							<thead>
+								<tr class="bg-gray-50">
+									<th
+										class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+									>
+										방 번호
+									</th>
+									<th
+										class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+									>
+										방장
+									</th>
+									<th
+										class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+									>
+										인원
+									</th>
+									<th
+										class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+									>
+										상태
+									</th>
+									<th
+										class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+									>
+										액션
+									</th>
+								</tr>
+							</thead>
+							<tbody id="roomsList" class="bg-white divide-y divide-gray-200">
+								<!-- 방 목록이 여기에 동적으로 추가됩니다 -->
+							</tbody>
+						</table>
+					</div>
+
+					<!-- 빈 방 목록 메시지 -->
+					<div
+						id="emptyRoomsMessage"
+						class="text-center py-8 text-gray-500 hidden"
+					>
+						<p class="text-lg">현재 대기 중인 방이 없습니다.</p>
+						<p class="text-sm">새 방을 만들어보세요!</p>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- 모달: 방 생성 -->
+		<div
+			id="createRoomModal"
+			class="fixed inset-0 bg-black bg-opacity-50 hidden z-50"
+		>
+			<div class="flex items-center justify-center min-h-screen p-4">
+				<div class="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+					<h3 class="text-lg font-semibold text-gray-800 mb-4">새 방 만들기</h3>
+					<p class="text-gray-600 mb-4">
+						방을 생성하면 자동으로 방장이 됩니다.
+					</p>
+					<div class="flex justify-end space-x-3">
+						<button
+							id="cancelCreateRoom"
+							class="px-4 py-2 text-gray-600 hover:text-gray-800 transition duration-200"
+						>
+							취소
+						</button>
+						<button
+							id="confirmCreateRoom"
+							class="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded transition duration-200"
+						>
+							방 만들기
+						</button>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- 모달: 방 참가 -->
+		<div
+			id="joinRoomModal"
+			class="fixed inset-0 bg-black bg-opacity-50 hidden z-50"
+		>
+			<div class="flex items-center justify-center min-h-screen p-4">
+				<div class="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+					<h3 class="text-lg font-semibold text-gray-800 mb-4">방 참가</h3>
+					<p id="joinRoomMessage" class="text-gray-600 mb-4"></p>
+					<div class="flex justify-end space-x-3">
+						<button
+							id="cancelJoinRoom"
+							class="px-4 py-2 text-gray-600 hover:text-gray-800 transition duration-200"
+						>
+							취소
+						</button>
+						<button
+							id="confirmJoinRoom"
+							class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded transition duration-200"
+						>
+							참가하기
+						</button>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<script>
+			// JWT 토큰 관리
+			function getAccessToken() {
+				const token = sessionStorage.getItem("access_token");
+				if (!token) {
+					alert("로그인이 필요합니다.");
+					window.location.href = "/login";
+					return null;
+				}
+				return token;
+			}
+
+			function makeAuthenticatedRequest(url, options = {}) {
+				const token = getAccessToken();
+				if (!token) return Promise.reject("No token");
+
+				const headers = {
+					Authorization: `Bearer ${token}`,
+					"Content-Type": "application/json",
+					...options.headers,
+				};
+
+				return fetch(url, {
+					...options,
+					headers,
+				});
+			}
+
+			// Socket.IO 연결 (JWT 기반)
+			const token = getAccessToken();
+			const socket = io({
+				auth: {
+					token: token,
+				},
+			});
+			let selectedRoomId = null;
+
+			// 페이지 로드 시 토큰 초기화 및 방 목록 불러오기
+			document.addEventListener("DOMContentLoaded", function () {
+				// 서버에서 세션에 저장된 토큰들을 sessionStorage로 복사
+				const accessToken = '{{ session.get("access_token", "") }}';
+				const refreshToken = '{{ session.get("refresh_token", "") }}';
+
+				if (accessToken) {
+					sessionStorage.setItem("access_token", accessToken);
+				}
+				if (refreshToken) {
+					sessionStorage.setItem("refresh_token", refreshToken);
+				}
+
+				loadRooms();
+
+				// Socket.IO 연결 이벤트
+				socket.on("connect", function () {
+					console.log("Socket.IO connected");
+				});
+
+				socket.on("error", function (error) {
+					console.error("Socket.IO error:", error);
+					if (error.type === "AUTH_ERROR") {
+						alert("인증이 만료되었습니다. 다시 로그인해주세요.");
+						window.location.href = "/login";
+					}
+				});
+
+				// 방 목록 업데이트 이벤트 (실시간)
+				socket.on("rooms_updated", function (data) {
+					loadRooms();
+				});
+
+				socket.on("room:update", function (data) {
+					loadRooms();
+				});
+			});
+
+			// 방 목록 불러오기 (JWT API 호출)
+			async function loadRooms() {
+				try {
+					const response = await makeAuthenticatedRequest("/api/rooms");
+					const data = await response.json();
+
+					if (response.ok) {
+						displayRooms(data.rooms);
+					} else {
+						console.error("방 목록 로드 실패:", data.error);
+						if (response.status === 401) {
+							alert("인증이 만료되었습니다. 다시 로그인해주세요.");
+							window.location.href = "/login";
+						}
+					}
+				} catch (error) {
+					console.error("방 목록 로드 오류:", error);
+				}
+			}
+
+			// 방 목록 표시
+			function displayRooms(rooms) {
+				const roomsList = document.getElementById("roomsList");
+				const emptyMessage = document.getElementById("emptyRoomsMessage");
+
+				if (rooms.length === 0) {
+					roomsList.innerHTML = "";
+					emptyMessage.classList.remove("hidden");
+					return;
+				}
+
+				emptyMessage.classList.add("hidden");
+
+				roomsList.innerHTML = rooms
+					.map(
+						(room) => `
+                <tr class="hover:bg-gray-50">
+                    <td class="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        #${room.room_id}
+                    </td>
+                    <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
+                        ${room.host_name}
+                    </td>
+                    <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
+                        ${room.participants.length}/2
+                    </td>
+                    <td class="px-4 py-4 whitespace-nowrap">
+                        <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusBadgeClass(
+													room.status
+												)}">
+                            ${getStatusText(room.status)}
+                        </span>
+                    </td>
+                    <td class="px-4 py-4 whitespace-nowrap text-sm font-medium">
+                        ${
+													room.participants.length < 2
+														? `<button onclick="showJoinRoomModal('${room.room_id}')" class="text-blue-600 hover:text-blue-900 transition duration-200">참가</button>`
+														: '<span class="text-gray-400">만원</span>'
+												}
+                    </td>
+                </tr>
+            `
+					)
+					.join("");
+			}
+
+			// 상태 배지 클래스
+			function getStatusBadgeClass(status) {
+				switch (status) {
+					case "waiting":
+						return "bg-green-100 text-green-800";
+					case "playing":
+						return "bg-yellow-100 text-yellow-800";
+					default:
+						return "bg-gray-100 text-gray-800";
+				}
+			}
+
+			// 상태 텍스트
+			function getStatusText(status) {
+				switch (status) {
+					case "waiting":
+						return "대기중";
+					case "playing":
+						return "게임중";
+					default:
+						return "알 수 없음";
+				}
+			}
+
+			// 방 생성 모달 표시
+			document
+				.getElementById("createRoomBtn")
+				.addEventListener("click", function () {
+					document.getElementById("createRoomModal").classList.remove("hidden");
+				});
+
+			// 방 생성 취소
+			document
+				.getElementById("cancelCreateRoom")
+				.addEventListener("click", function () {
+					document.getElementById("createRoomModal").classList.add("hidden");
+				});
+
+			// 방 생성 확인 (JWT 인증)
+			document
+				.getElementById("confirmCreateRoom")
+				.addEventListener("click", async function () {
+					try {
+						const response = await makeAuthenticatedRequest("/api/rooms", {
+							method: "POST",
+						});
+
+						const data = await response.json();
+
+						if (response.ok) {
+							document
+								.getElementById("createRoomModal")
+								.classList.add("hidden");
+							alert("방이 생성되었습니다!");
+							loadRooms();
+						} else {
+							alert("방 생성 실패: " + data.error);
+							if (response.status === 401) {
+								window.location.href = "/login";
+							}
+						}
+					} catch (error) {
+						console.error("방 생성 오류:", error);
+						alert("방 생성 중 오류가 발생했습니다.");
+					}
+				});
+
+			// 방 참가 모달 표시
+			function showJoinRoomModal(roomId) {
+				selectedRoomId = roomId;
+				document.getElementById(
+					"joinRoomMessage"
+				).textContent = `방 #${roomId}에 참가하시겠습니까?`;
+				document.getElementById("joinRoomModal").classList.remove("hidden");
+			}
+
+			// 방 참가 취소
+			document
+				.getElementById("cancelJoinRoom")
+				.addEventListener("click", function () {
+					document.getElementById("joinRoomModal").classList.add("hidden");
+					selectedRoomId = null;
+				});
+
+			// 방 참가 확인 (JWT 인증)
+			document
+				.getElementById("confirmJoinRoom")
+				.addEventListener("click", async function () {
+					if (!selectedRoomId) return;
+
+					try {
+						const response = await makeAuthenticatedRequest("/api/rooms/join", {
+							method: "POST",
+							body: JSON.stringify({
+								room_id: selectedRoomId,
+							}),
+						});
+
+						const data = await response.json();
+
+						if (response.ok) {
+							document.getElementById("joinRoomModal").classList.add("hidden");
+							alert("방에 참가했습니다!");
+							loadRooms();
+
+							// Socket.IO room:join 이벤트 발송 (JWT 포함)
+							socket.emit("room:join", {
+								room_id: selectedRoomId,
+								user_name: "{{ user_name }}",
+								token: getAccessToken(),
+							});
+						} else {
+							alert("방 참가 실패: " + data.error);
+							if (response.status === 401) {
+								window.location.href = "/login";
+							}
+						}
+					} catch (error) {
+						console.error("방 참가 오류:", error);
+						alert("방 참가 중 오류가 발생했습니다.");
+					}
+
+					selectedRoomId = null;
+				});
+
+			// 모달 외부 클릭 시 닫기
+			document
+				.getElementById("createRoomModal")
+				.addEventListener("click", function (e) {
+					if (e.target === this) {
+						this.classList.add("hidden");
+					}
+				});
+
+			document
+				.getElementById("joinRoomModal")
+				.addEventListener("click", function (e) {
+					if (e.target === this) {
+						this.classList.add("hidden");
+						selectedRoomId = null;
+					}
+				});
+		</script>
+	</body>
+</html>
