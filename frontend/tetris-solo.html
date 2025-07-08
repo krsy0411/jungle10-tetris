@@ -24,7 +24,9 @@
     const KEY = {
       LEFT: 37,
       RIGHT: 39,
-      DOWN: 40
+      DOWN: 40,
+      UP: 38,
+      SPACE: 32
     };
     Object.freeze(KEY);
 
@@ -144,7 +146,6 @@
       const block = gameState.currentBlock;
       const rotatedShape = rotate(block.shape);
 
-      // 회전된 모양이 충돌하지 않으면 적용
       if (!isCollision(gameState.grid, block, block.x, block.y, rotatedShape)) {
         block.shape = rotatedShape;
         render();
@@ -162,9 +163,40 @@
           const newY = nextY + y;
 
           const insideBoard = newX >= 0 && newX < COLS && newY < ROWS;
-          const notBlocked = newY < 0 || grid[newY][newX] === 0;
-
+          const notBlocked = newY < 0 || (grid[newY] && grid[newY][newX] === 0);
           return insideBoard && notBlocked;
+        });
+      });
+    }
+
+    function hardDrop() {
+      const block = gameState.currentBlock;
+      let dropY = block.y;
+
+      // 아래로 계속 떨어뜨리면서 충돌 안 나는 지점 찾기
+      while (!isCollision(gameState.grid, block, block.x, dropY + 1)) {
+        dropY++;
+      }
+
+      // 최종 위치에 블럭 위치 고정
+      block.y = dropY;
+      render();
+
+      // 블럭 고정 처리 (grid에 반영)
+      fixBlockToGrid();
+    }
+
+    function fixBlockToGrid() {
+      const { grid, currentBlock: block } = gameState;
+
+      block.shape.forEach((row, y) => {
+        row.forEach((value, x) => {
+          if (value > 0) {
+            const gx = block.x + x;
+            const gy = block.y + y;
+
+            if (gy >= 0) grid[gy][gx] = value;  // 격자에 블럭 고정
+          }
         });
       });
     }
@@ -174,9 +206,12 @@
       if (move) {
         e.preventDefault();
           moveBlock(move.dx, move.dy);
-      } else if (e.keyCode === 38) {
+      } else if (e.keyCode === KEY.UP) {
         e.preventDefault();
         rotateBlock();
+      } else if (e.keyCode === KEY.SPACE) {
+        e.preventDefault();
+        hardDrop();
       }
     }
 
