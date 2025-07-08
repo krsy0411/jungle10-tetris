@@ -55,6 +55,14 @@
       current: null
     };
 
+    const timer = {
+      start: 0,
+      elapsed: 0,
+      interval: 1000
+    };
+
+    let requestId = null;
+
     // === 초기화 ===
     function initializeCanvas() {
       game.canvas.width = COLS * BLOCK_SIZE;
@@ -70,7 +78,9 @@
     function startGame() {
       game.grid = initializeBoard();
       game.current = generateBlock();
-      render();
+      timer.start = performance.now();
+      if (requestId) cancelAnimationFrame(requestId);
+      animate();
     }
 
     // === 렌더링 ===
@@ -89,14 +99,12 @@
       const ctx = game.ctx;
       ctx.strokeStyle = '#444';
       ctx.lineWidth = 0.05;
-
       for (let r = 0; r <= ROWS; r++) {
         ctx.beginPath();
         ctx.moveTo(0, r);
         ctx.lineTo(COLS, r);
         ctx.stroke();
       }
-
       for (let c = 0; c <= COLS; c++) {
         ctx.beginPath();
         ctx.moveTo(c, 0);
@@ -133,14 +141,7 @@
       const { blocks, center } = BLOCK_SHAPES[index];
       const color = COLORS[index];
       const minDy = Math.min(...blocks.map(([_, dy]) => dy));
-
-      return {
-        x: 4,
-        y: -minDy,
-        color,
-        blocks,
-        center
-      };
+      return { x: 4, y: -minDy, color, blocks, center };
     }
 
     function move(dx, dy) {
@@ -151,28 +152,23 @@
       if (!isColliding(grid, current, newX, newY)) {
         current.x = newX;
         current.y = newY;
-        render();
       } else if (dy === 1) {
         placeBlock();
         game.current = generateBlock();
-        render();
       }
     }
 
     function rotate() {
       const { current, grid } = game;
       if (!current.center) return;
-
       const rotated = current.blocks.map(([x, y]) => {
         const [cx, cy] = current.center;
         const relX = x - cx;
         const relY = y - cy;
         return [-relY + cx, relX + cy];
       });
-
       if (!isColliding(grid, current, current.x, current.y, rotated, true)) {
         current.blocks = rotated;
-        render();
       }
     }
 
@@ -183,19 +179,16 @@
       }
       placeBlock();
       game.current = generateBlock();
-      render();
     }
 
     function placeBlock() {
       const { grid, current } = game;
       const colorIndex = COLORS.indexOf(current.color) + 1;
-
       current.blocks.forEach(([dx, dy]) => {
         const x = current.x + dx;
         const y = current.y + dy;
         if (y >= 0) grid[y][x] = colorIndex;
       });
-
       clearLines();
     }
 
@@ -218,6 +211,17 @@
           y++;
         }
       }
+    }
+
+    // === 애니메이션 루프 ===
+    function animate(now = 0) {
+      timer.elapsed = now - timer.start;
+      if (timer.elapsed > timer.interval) {
+        timer.start = now;
+        move(0, 1); // 자동 낙하
+      }
+      render();
+      requestId = requestAnimationFrame(animate);
     }
 
     // === 이벤트 핸들러 ===
