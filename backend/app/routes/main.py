@@ -137,6 +137,16 @@ def logout():
 def main():    
     return render_template('main.html')
 
+@main_bp.route('/solo')
+@jwt_required()
+def solo():
+    """솔로 모드 (JWT 인증) : 테트리스 게임화면으로 이동"""
+    user_id = get_jwt_identity()
+    user = User.find_by_user_id(user_id)
+    if not user:
+        flash('사용자를 찾을 수 없습니다.', 'error')
+        return redirect(url_for('main.login'))
+    return render_template('solo.html', user_name=user.name)
 
 @main_bp.route('/rooms')
 @jwt_required()
@@ -150,7 +160,6 @@ def rooms():
         return redirect(url_for('main.login'))
     
     return render_template('rooms.html', user_name=user.name)
-
 
 @main_bp.route('/ranking')
 @jwt_required()
