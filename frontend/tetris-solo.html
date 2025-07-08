@@ -178,7 +178,8 @@
         current.y = newY;
         render();
       } else if (dy === 1) {
-        placeBlock();
+        const lines = placeBlock();
+        addScore(lines);  // ← 여기서 점수 주기
         game.current = generateBlock();
         render();
       }
@@ -225,7 +226,6 @@
       });
 
       const linesCleared = clearLines();
-      if (linesCleared > 0) addScore(linesCleared);
       return linesCleared;
     }
 
