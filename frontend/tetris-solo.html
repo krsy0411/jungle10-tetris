@@ -39,13 +39,13 @@
     const COLORS = ['cyan', 'blue', 'orange', 'yellow', 'green', 'purple', 'red'];
 
     const BLOCK_SHAPES = [
-      { blocks: [[-1, 0], [0, 0], [1, 0], [2, 0]], center: [0, 0] },       // I
-      { blocks: [[-1, 0], [0, 0], [1, 0], [1, -1]], center: [0, 0] },     // J
-      { blocks: [[-1, 0], [0, 0], [1, 0], [1, 1]], center: [0, 0] },      // L
-      { blocks: [[0, 0], [1, 0], [0, 1], [1, 1]], center: null },        // O
-      { blocks: [[-1, 0], [0, 0], [0, 1], [1, 1]], center: [0, 0] },      // S
-      { blocks: [[-1, 0], [0, 0], [1, 0], [0, 1]], center: [0, 0] },      // T
-      { blocks: [[-1, 1], [0, 1], [0, 0], [1, 0]], center: [0, 0] }       // Z
+      { blocks: [[-1, 0], [0, 0], [1, 0], [2, 0]], center: [0, 0] },
+      { blocks: [[-1, 0], [0, 0], [1, 0], [1, -1]], center: [0, 0] },
+      { blocks: [[-1, 0], [0, 0], [1, 0], [1, 1]], center: [0, 0] },
+      { blocks: [[0, 0], [1, 0], [0, 1], [1, 1]], center: null },
+      { blocks: [[-1, 0], [0, 0], [0, 1], [1, 1]], center: [0, 0] },
+      { blocks: [[-1, 0], [0, 0], [1, 0], [0, 1]], center: [0, 0] },
+      { blocks: [[-1, 1], [0, 1], [0, 0], [1, 0]], center: [0, 0] }
     ];
 
     const game = {
@@ -62,7 +62,8 @@
       interval: 1000
     };
 
-    // === 초기화 ===
+    let score = 0;
+
     function initializeCanvas() {
       game.canvas.width = COLS * BLOCK_SIZE;
       game.canvas.height = ROWS * BLOCK_SIZE;
@@ -78,12 +79,13 @@
       game.grid = initializeBoard();
       game.current = generateBlock();
       game.over = false;
+      score = 0;
+      updateScore();
       time.start = performance.now();
       animate();
       render();
     }
 
-    // === 렌더링 ===
     function render() {
       clear();
       drawGrid();
@@ -100,14 +102,12 @@
       const ctx = game.ctx;
       ctx.strokeStyle = '#444';
       ctx.lineWidth = 0.05;
-
       for (let r = 0; r <= ROWS; r++) {
         ctx.beginPath();
         ctx.moveTo(0, r);
         ctx.lineTo(COLS, r);
         ctx.stroke();
       }
-
       for (let c = 0; c <= COLS; c++) {
         ctx.beginPath();
         ctx.moveTo(c, 0);
@@ -141,12 +141,11 @@
     function drawGameOver() {
       const ctx = game.ctx;
       ctx.fillStyle = 'white';
-      ctx.font = '1px Arial';
+      ctx.font = '1.2px Arial';
       ctx.textAlign = 'center';
       ctx.fillText('GAME OVER', COLS / 2, ROWS / 2);
     }
 
-    // === 블록 처리 ===
     function generateBlock() {
       const index = Math.floor(Math.random() * BLOCK_SHAPES.length);
       const { blocks, center } = BLOCK_SHAPES[index];
@@ -161,7 +160,6 @@
         center
       };
 
-      // 게임 오버 체크
       if (isColliding(game.grid, newBlock, newBlock.x, newBlock.y)) {
         game.over = true;
       }
@@ -210,7 +208,8 @@
       while (!isColliding(game.grid, block, block.x, block.y + 1)) {
         block.y++;
       }
-      placeBlock();
+      const lines = placeBlock();
+      addScore(lines, true);
       game.current = generateBlock();
       render();
     }
@@ -225,10 +224,11 @@
         if (y >= 0) grid[y][x] = colorIndex;
       });
 
-      clearLines();
+      const linesCleared = clearLines();
+      if (linesCleared > 0) addScore(linesCleared);
+      return linesCleared;
     }
 
-    // === 충돌 및 줄 처리 ===
     function isColliding(grid, block, offsetX, offsetY, override = null, strict = false) {
       const cells = override || block.blocks;
       return cells.some(([dx, dy]) => {
@@ -240,16 +240,29 @@
     }
 
     function clearLines() {
+      let cleared = 0;
       for (let y = ROWS - 1; y >= 0; y--) {
         if (game.grid[y].every(cell => cell !== 0)) {
           game.grid.splice(y, 1);
           game.grid.unshift(Array(COLS).fill(0));
           y++;
+          cleared++;
         }
       }
+      return cleared;
     }
 
-    // === 애니메이션 루프 ===
+    function addScore(lines, isHardDrop = false) {
+      const base = lines === 1 ? 100 : lines === 2 ? 300 : lines === 3 ? 500 : lines >= 4 ? 800 : 0;
+      const gained = isHardDrop ? base * 2 : base;
+      score += gained;
+      updateScore();
+    }
+
+    function updateScore() {
+      document.getElementById('score').textContent = `점수: ${score}`;
+    }
+
     function animate(now = 0) {
       if (game.over) {
         render();
@@ -267,7 +280,6 @@
       requestAnimationFrame(animate);
     }
 
-    // === 이벤트 핸들러 ===
     function onKeyDown(e) {
       const moveAction = MOVES[e.keyCode];
       if (moveAction) {
@@ -282,7 +294,6 @@
       }
     }
 
-    // === 실행 ===
     initializeCanvas();
     drawGrid();
     document.addEventListener('keydown', onKeyDown);
