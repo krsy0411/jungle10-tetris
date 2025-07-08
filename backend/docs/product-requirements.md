@@ -51,7 +51,11 @@ Jungle Tetris - 멀티플레이어 테트리스 게임
   - 아이디 중복 확인
   - 비밀번호 강도 검증
   - 모든 필드 필수 입력
-- **성공 시**: 자동 로그인 후 메인 페이지 이동
+- **성공 시**:
+  - localStorage에 토큰들 저장
+    - `localStorage.setItem("access_token", accessToken)`
+    - `localStorage.setItem("refresh_token", refreshToken)`
+  - 자동 로그인 후 메인 페이지 이동
 - **실패 시**: 구체적인 오류 메시지 표시
 
 #### 3.1.2 로그인
@@ -66,14 +70,20 @@ Jungle Tetris - 멀티플레이어 테트리스 게임
   - 액세스 토큰 (15분 만료) + 리프레시 토큰 (3시간 만료)
   - 자동 토큰 갱신
   - 로그인 실패 시 횟수 제한 (5회)
-- **성공 시**: 메인 대시보드로 이동
+- **성공 시**:
+  - localStorage에 토큰들 저장
+    - `localStorage.setItem("access_token", accessToken)`
+    - `localStorage.setItem("refresh_token", refreshToken)`
+  - 메인 대시보드로 이동
 - **실패 시**: 오류 메시지 및 재시도 옵션
 
 #### 3.1.3 로그아웃
 
 **기능 설명**: 사용자 세션 종료
 
-- 클라이언트에서 JWT 토큰 삭제
+- 클라이언트 localStorage에서 JWT 토큰들 삭제
+  - `localStorage.removeItem("access_token")`
+  - `localStorage.removeItem("refresh_token")`
 - 서버에서 리프레시 토큰 무효화 (해당 사용자 ID의 새 토큰 발급 시 이전 토큰 거부)
 - 진행 중인 게임이 있을 경우 경고 메시지
 - 로그인 페이지로 리다이렉트
@@ -84,6 +94,7 @@ Jungle Tetris - 멀티플레이어 테트리스 게임
 
 - 리프레시 토큰을 이용한 새 액세스 토큰 발급
 - 토큰 만료 5분 전 자동 갱신
+- 새 액세스 토큰을 localStorage에 업데이트 (`localStorage.setItem("access_token", newToken)`)
 - 리프레시 토큰 만료 시 재로그인 요구
 
 ### 3.2 방 관리 시스템
@@ -92,8 +103,11 @@ Jungle Tetris - 멀티플레이어 테트리스 게임
 
 **기능 설명**: 1대1 대전을 위한 게임 룸 생성
 
-- **방 설정 옵션**:
-  - 방 제목: 1-30자, 특수문자 제한
+- **인증 방식**:
+  - JWT 액세스 토큰에서 사용자 정보 추출
+  - 요청 바디 불필요, 토큰만으로 방 생성
+- **자동 생성**:
+  - 방 번호: 시스템에서 자동 할당
 - **방 관리**:
   - 방장 권한 (게임 시작, 방 설정 변경, 강제 퇴장)
   - 최대 인원: 2명 (방장 + 참가자 1명)
@@ -195,9 +209,6 @@ Jungle Tetris - 멀티플레이어 테트리스 게임
   user_id: String,            // 플레이어 ID
   game_type: String,          // "solo" | "versus"
   score: Number,              // 획득 점수
-  level: Number,              // 도달 레벨
-  lines_cleared: Number,      // 제거한 라인 수
-  play_time: Number,          // 플레이 시간(초) - 최대 60초
   opponent_id: String,        // 대전 상대 ID (versus만)
   is_winner: Boolean,         // 승리 여부 (versus만)
   played_at: Date            // 게임 플레이 일시
@@ -209,8 +220,7 @@ Jungle Tetris - 멀티플레이어 테트리스 게임
 ```javascript
 {
   _id: ObjectId,
-  room_id: String(unique),    // 방 번호 (사용자 입력용)
-  room_title: String,         // 방 제목
+  room_id: Number(unique),    // 방 번호 (사용자 입력용)
   host_id: String,           // 방장 ID
   status: String,            // "waiting" | "playing" | "finished"
   players: Array,            // 참가자 목록
@@ -239,11 +249,10 @@ Jungle Tetris - 멀티플레이어 테트리스 게임
 - `POST /api/auth/login` - 로그인 (JWT 토큰 발급)
 - `POST /api/auth/logout` - 로그아웃 (리프레시 토큰 무효화)
 - `POST /api/auth/refresh` - 액세스 토큰 갱신
-- `GET /api/auth/profile` - 사용자 프로필 조회 (인증 필요)
 
 ### 5.2 방 관리 API
 
-- `POST /api/rooms` - 방 생성
+- `POST /api/rooms` - 방 생성 (JWT 토큰 기반)
 - `POST /api/rooms/join` - 방 참가 (방 번호로)
 - `DELETE /api/rooms/:id` - 방 삭제
 
@@ -268,26 +277,26 @@ Jungle Tetris - 멀티플레이어 테트리스 게임
 
   ```javascript
   // 클라이언트 → 서버
-  { room_id: "room123", user_name: "홍길동" }
+  { room_id: 123, user_name: "홍길동" }
 
   // 서버 → 클라이언트 (방 내 모든 사용자)
-  { room_id: "room123", user_name: "홍길동", message: "홍길동님이 방에 참가했습니다" }
+  { room_id: 123, user_name: "홍길동", message: "홍길동님이 방에 참가했습니다" }
   ```
 
 - `room:leave` - 방 나가기
 
   ```javascript
   // 클라이언트 → 서버
-  { room_id: "room123", user_name: "홍길동" }
+  { room_id: 123, user_name: "홍길동" }
 
   // 서버 → 클라이언트 (방 내 모든 사용자)
-  { room_id: "room123", user_name: "홍길동", message: "홍길동님이 방을 나갔습니다" }
+  { room_id: 123, user_name: "홍길동", message: "홍길동님이 방을 나갔습니다" }
   ```
 
 - `room:update` - 방 정보 업데이트
   ```javascript
   // 서버 → 클라이언트
-  { room_id: "room123", status: "waiting", players: ["홍길동", "김철수"] }
+  { room_id: 123, status: "waiting", players: ["홍길동", "김철수"] }
   ```
 
 ### 6.2 게임 이벤트
@@ -297,7 +306,7 @@ Jungle Tetris - 멀티플레이어 테트리스 게임
   ```javascript
   // 서버 → 클라이언트 (방 내 모든 사용자)
   {
-    room_id: "room123",
+    room_id: 123,
     players: [
       { name: "홍길동", score: 0 },
       { name: "김철수", score: 0 }
@@ -310,11 +319,11 @@ Jungle Tetris - 멀티플레이어 테트리스 게임
 
   ```javascript
   // 클라이언트 → 서버
-  { room_id: "room123", user_name: "홍길동", score: 1500 }
+  { room_id: 123, user_name: "홍길동", score: 1500 }
 
   // 서버 → 클라이언트 (방 내 모든 사용자)
   {
-    room_id: "room123",
+    room_id: 123,
     players: [
       { name: "홍길동", score: 1500 },
       { name: "김철수", score: 800 }
@@ -326,11 +335,11 @@ Jungle Tetris - 멀티플레이어 테트리스 게임
 
   ```javascript
   // 클라이언트 → 서버
-  { room_id: "room123", user_name: "홍길동", final_score: 2500 }
+  { room_id: 123, user_name: "홍길동", final_score: 2500 }
 
   // 서버 → 클라이언트 (방 내 모든 사용자)
   {
-    room_id: "room123",
+    room_id: 123,
     game_over: true,
     winner: "김철수",
     loser: "홍길동",
@@ -345,7 +354,7 @@ Jungle Tetris - 멀티플레이어 테트리스 게임
   ```javascript
   // 서버 → 클라이언트 (상대방에게)
   {
-    room_id: "room123",
+    room_id: 123,
     disconnected_player: "홍길동",
     message: "상대방의 연결이 끊어졌습니다. 잠시 후 재연결을 시도합니다.",
     wait_time: 30
@@ -425,7 +434,7 @@ Jungle Tetris - 멀티플레이어 테트리스 게임
 
 ---
 
-**문서 버전**: 1.3  
+**문서 버전**: 1.4  
 **작성일**: 2025년 7월 8일  
-**최종 수정**: 2025년 7월 8일 (리프레시 토큰 만료시간 3시간으로 조정, 불필요한 섹션 제거)  
+**최종 수정**: 2025년 7월 8일 (localStorage 기반 JWT 토큰 관리 방식 명시)  
 **최종 검토**: 개발 시작 전 재검토 필요

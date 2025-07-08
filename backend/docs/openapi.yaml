@@ -1,7 +1,28 @@
 openapi: 3.0.3
 info:
   title: Jungle Tetris API
-  description: 실시간 대전 및 랭킹 시스템이 포함된 웹 기반 테트리스 게임 API
+  description: |
+    실시간 대전 및 랭킹 시스템이 포함된 웹 기반 테트리스 게임 API
+
+    ## 실시간 통신
+    이 API는 HTTP REST API와 함께 **Socket.IO**를 사용하여 실시간 기능을 제공합니다:
+    - 실시간 방 관리 (입장/퇴장 알림)
+    - 게임 중 실시간 점수 동기화
+    - 게임 시작/종료 이벤트
+    - 연결 상태 관리
+
+    ### Socket.IO 엔드포인트
+    - **개발 서버**: `ws://localhost:5000`
+    - **프로덕션 서버**: `wss://api.jungletetris.com`
+
+    ### 주요 Socket.IO 이벤트
+    - `room:join` - 방 참가
+    - `room:leave` - 방 나가기  
+    - `room:update` - 방 정보 업데이트
+    - `game:start` - 게임 시작
+    - `game:score_update` - 점수 업데이트
+    - `game:game_over` - 게임 종료
+    - `game:disconnect` - 연결 끊김 처리
   version: 1.3.0
   contact:
     name: Jungle Tetris Team
@@ -9,7 +30,6 @@ info:
   license:
     name: MIT
     url: https://opensource.org/licenses/MIT
-
 servers:
   - url: http://localhost:5000
     description: 개발 서버
@@ -198,59 +218,18 @@ paths:
         "401":
           $ref: "#/components/responses/Unauthorized"
 
-  /api/auth/profile:
-    get:
-      tags:
-        - Authentication
-      summary: 사용자 프로필 조회
-      description: 현재 로그인한 사용자의 프로필 정보를 조회합니다
-      responses:
-        "200":
-          description: 프로필 조회 성공
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  user_id:
-                    type: string
-                    example: "user123"
-                  name:
-                    type: string
-                    example: "홍길동"
-                  created_at:
-                    type: string
-                    format: date-time
-                    example: "2025-07-08T10:30:00Z"
-                  last_login:
-                    type: string
-                    format: date-time
-                    example: "2025-07-08T15:45:00Z"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-
   # 방 관리 API
   /api/rooms:
     post:
       tags:
         - Rooms
       summary: 방 생성
-      description: 1대1 대전을 위한 게임 룸을 생성합니다
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required:
-                - room_title
-              properties:
-                room_title:
-                  type: string
-                  minLength: 1
-                  maxLength: 30
-                  description: 방 제목 (1-30자, 특수문자 제한)
-                  example: "홍길동의 방"
+      description: |
+        1대1 대전을 위한 게임 룸을 생성합니다.
+
+        **인증**: JWT 토큰에서 사용자 정보를 추출하여 방을 생성합니다.
+
+        **📡 실시간 연동**: 방 생성 후 Socket.IO를 통해 실시간 방 관리가 가능합니다.
       responses:
         "201":
           description: 방 생성 성공
@@ -260,11 +239,8 @@ paths:
                 type: object
                 properties:
                   room_id:
-                    type: string
-                    example: "room123"
-                  room_title:
-                    type: string
-                    example: "홍길동의 방"
+                    type: integer
+                    example: 123
                   host_id:
                     type: string
                     example: "user123"
@@ -291,7 +267,10 @@ paths:
       tags:
         - Rooms
       summary: 방 참가
-      description: 방 번호를 입력하여 방에 참가합니다
+      description: |
+        방 번호를 입력하여 방에 참가합니다.
+
+        **📡 실시간 연동**: 방 참가 후 Socket.IO `room:join` 이벤트를 통해 실시간 상호작용이 시작됩니다.
       requestBody:
         required: true
         content:
@@ -302,9 +281,9 @@ paths:
                 - room_id
               properties:
                 room_id:
-                  type: string
+                  type: integer
                   description: 참가할 방 번호
-                  example: "room123"
+                  example: 123
       responses:
         "200":
           description: 방 참가 성공
@@ -317,11 +296,8 @@ paths:
                     type: string
                     example: "방에 참가했습니다"
                   room_id:
-                    type: string
-                    example: "room123"
-                  room_title:
-                    type: string
-                    example: "홍길동의 방"
+                    type: integer
+                    example: 123
                   players:
                     type: array
                     items:
@@ -345,9 +321,9 @@ paths:
           in: path
           required: true
           schema:
-            type: string
+            type: integer
           description: 방 ID
-          example: "room123"
+          example: 123
       responses:
         "200":
           description: 방 삭제 성공
@@ -381,9 +357,6 @@ paths:
               schema:
                 type: object
                 properties:
-                  game_id:
-                    type: string
-                    example: "game_12345"
                   game_time:
                     type: integer
                     description: 게임 시간 (초)
@@ -407,36 +380,13 @@ paths:
             schema:
               type: object
               required:
-                - game_id
                 - score
-                - level
-                - lines_cleared
-                - play_time
               properties:
-                game_id:
-                  type: string
-                  example: "game_12345"
                 score:
                   type: integer
                   minimum: 0
                   description: 획득 점수
                   example: 2500
-                level:
-                  type: integer
-                  minimum: 1
-                  description: 도달 레벨
-                  example: 5
-                lines_cleared:
-                  type: integer
-                  minimum: 0
-                  description: 제거한 라인 수
-                  example: 25
-                play_time:
-                  type: integer
-                  minimum: 0
-                  maximum: 60
-                  description: 플레이 시간 (초, 최대 60초)
-                  example: 60
       responses:
         "200":
           description: 솔로 게임 종료 성공
@@ -465,7 +415,10 @@ paths:
       tags:
         - Game
       summary: 대전 게임 시작
-      description: 1대1 대전 모드의 테트리스 게임을 시작합니다
+      description: |
+        1대1 대전 모드의 테트리스 게임을 시작합니다.
+
+        **📡 실시간 연동**: 게임 시작 후 Socket.IO를 통해 실시간 점수 동기화 및 게임 상태 관리가 이루어집니다.
       requestBody:
         required: true
         content:
@@ -476,9 +429,9 @@ paths:
                 - room_id
               properties:
                 room_id:
-                  type: string
+                  type: integer
                   description: 방 ID
-                  example: "room123"
+                  example: 123
       responses:
         "200":
           description: 대전 게임 시작 성공
@@ -487,12 +440,9 @@ paths:
               schema:
                 type: object
                 properties:
-                  game_id:
-                    type: string
-                    example: "versus_12345"
                   room_id:
-                    type: string
-                    example: "room123"
+                    type: integer
+                    example: 123
                   game_time:
                     type: integer
                     description: 게임 시간 (초)
@@ -534,40 +484,17 @@ paths:
             schema:
               type: object
               required:
-                - game_id
                 - room_id
                 - score
-                - level
-                - lines_cleared
-                - play_time
               properties:
-                game_id:
-                  type: string
-                  example: "versus_12345"
                 room_id:
-                  type: string
-                  example: "room123"
+                  type: integer
+                  example: 123
                 score:
                   type: integer
                   minimum: 0
                   description: 획득 점수
                   example: 3200
-                level:
-                  type: integer
-                  minimum: 1
-                  description: 도달 레벨
-                  example: 6
-                lines_cleared:
-                  type: integer
-                  minimum: 0
-                  description: 제거한 라인 수
-                  example: 32
-                play_time:
-                  type: integer
-                  minimum: 0
-                  maximum: 60
-                  description: 플레이 시간 (초, 최대 60초)
-                  example: 60
       responses:
         "200":
           description: 대전 게임 종료 성공
@@ -662,6 +589,19 @@ paths:
                           format: date-time
                           description: 달성 일시
                           example: "2025-07-08T14:30:00Z"
+                    example:
+                      - rank: 1
+                        user_name: "홍길동"
+                        score: 5000
+                        played_at: "2025-07-08T14:30:00Z"
+                      - rank: 2
+                        user_name: "김철수"
+                        score: 4800
+                        played_at: "2025-07-08T13:15:00Z"
+                      - rank: 3
+                        user_name: "이영희"
+                        score: 4200
+                        played_at: "2025-07-08T12:45:00Z"
                   total_count:
                     type: integer
                     description: 전체 랭킹 수
@@ -712,6 +652,19 @@ paths:
                           type: integer
                           description: 총 경기 수
                           example: 40
+                    example:
+                      - rank: 1
+                        user_name: "김철수"
+                        wins: 25
+                        total_games: 40
+                      - rank: 2
+                        user_name: "홍길동"
+                        wins: 22
+                        total_games: 35
+                      - rank: 3
+                        user_name: "이영희"
+                        wins: 18
+                        total_games: 28
                   total_count:
                     type: integer
                     description: 전체 랭킹 수
