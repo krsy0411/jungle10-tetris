@@ -19,15 +19,9 @@
   <script>
     const COLS = 10;
     const ROWS = 15;
-    const BLOCK_SIZE = window.innerHeight * 0.06; // 6vh
+    const BLOCK_SIZE = window.innerHeight * 0.06;
 
-    const KEY = {
-      LEFT: 37,
-      RIGHT: 39,
-      DOWN: 40,
-      UP: 38,
-      SPACE: 32
-    };
+    const KEY = { LEFT: 37, RIGHT: 39, DOWN: 40, UP: 38, SPACE: 32 };
     Object.freeze(KEY);
 
     const MOVES = {
@@ -36,63 +30,16 @@
       [KEY.DOWN]: { dx: 0, dy: 1 }
     };
 
-    const COLORS = [  
-      'cyan',    // I
-      'blue',    // J
-      'orange',  // L
-      'yellow',  // O
-      'green',   // S
-      'purple',  // T
-      'red'      // Z
-    ];
-
     const SHAPES = [
-      // I
-      [
-        [1, 1, 1, 1], 
-        [0, 0, 0, 0], 
-        [0, 0, 0, 0], 
-        [0, 0, 0, 0]
-      ],
-      // J
-      [
-        [2, 0, 0], 
-        [2, 2, 2], 
-        [0, 0, 0]
-      ],
-      // L
-      [
-        [0, 0, 3], 
-        [3, 3, 3], 
-        [0, 0, 0]
-      ],
-      // O
-      [
-        [4, 4], 
-        [4, 4]
-      ],
-      // S
-      [
-        [0, 5, 5], 
-        [5, 5, 0], 
-        [0, 0, 0]
-      ],
-      // T
-      [
-        [0, 6, 0], 
-        [6, 6, 6], 
-        [0, 0, 0]
-      ],
-      // Z
-      [
-        [7, 7, 0], 
-        [0, 7, 7], 
-        [0, 0, 0]
-      ]
+      { name: 'I', color: 'cyan', blocks: [[0,0],[1,0],[2,0],[3,0]], center: [1,0] },
+      { name: 'J', color: 'blue', blocks: [[0,0],[0,1],[1,1],[2,1]], center: [1,1] },
+      { name: 'L', color: 'orange', blocks: [[2,0],[0,1],[1,1],[2,1]], center: [1,1] },
+      { name: 'O', color: 'yellow', blocks: [[0,0],[1,0],[0,1],[1,1]], center: null },
+      { name: 'S', color: 'green', blocks: [[1,0],[2,0],[0,1],[1,1]], center: [1,1] },
+      { name: 'T', color: 'purple', blocks: [[1,0],[0,1],[1,1],[2,1]], center: [1,1] },
+      { name: 'Z', color: 'red', blocks: [[0,0],[1,0],[1,1],[2,1]], center: [1,1] }
     ];
 
-
-    // 게임 상태 객체
     const gameState = {
       canvas: document.getElementById('game-board'),
       ctx: null,
@@ -114,143 +61,100 @@
       return Array.from({ length: ROWS }, () => Array(COLS).fill(0));
     }
 
-    function clearCanvas() {
-      gameState.ctx.clearRect(0, 0, COLS, ROWS);
-    }
-
-    // 격자 그리기
     function drawGrid() {
       const ctx = gameState.ctx;
       ctx.strokeStyle = '#444';
       ctx.lineWidth = 0.05;
 
       for (let r = 0; r <= ROWS; r++) {
-        ctx.beginPath();
-        ctx.moveTo(0, r);
-        ctx.lineTo(COLS, r);
-        ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(0, r); ctx.lineTo(COLS, r); ctx.stroke();
       }
 
       for (let c = 0; c <= COLS; c++) {
-        ctx.beginPath();
-        ctx.moveTo(c, 0);
-        ctx.lineTo(c, ROWS);
-        ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(c, 0); ctx.lineTo(c, ROWS); ctx.stroke();
       }
     }
 
     function drawBlock(block) {
       const ctx = gameState.ctx;
       ctx.fillStyle = block.color;
-      block.shape.forEach((row, y) => {
-        row.forEach((value, x) => {
-          if (value > 0) {
-            ctx.fillRect(block.x + x, block.y + y, 1, 1);
-          }
-        });
+      block.blocks.forEach(([x, y]) => {
+        ctx.fillRect(block.x + x, block.y + y, 1, 1);
       });
     }
 
     function render() {
-      clearCanvas();
+      const ctx = gameState.ctx;
+      ctx.clearRect(0, 0, COLS, ROWS);
       drawGrid();
-      if (gameState.currentBlock) {
-        drawBlock(gameState.currentBlock);
-      }
+      if (gameState.currentBlock) drawBlock(gameState.currentBlock);
     }
 
     function createBlock() {
       const index = Math.floor(Math.random() * SHAPES.length);
+      const shape = SHAPES[index];
       return {
+        ...shape,
         x: 3,
         y: 0,
-        color: COLORS[index],
-        shape: SHAPES[index]
+        blocks: shape.blocks.map(p => [...p]) // 깊은 복사
       };
     }
 
-    function moveBlock(dx, dy) {
-
-      const block = gameState.currentBlock;
-      const newX = block.x + dx;
-      const newY = block.y + dy;
-
-      if (!isCollision(gameState.grid, block, newX, newY)) {
-        block.x = newX;
-        block.y = newY;
-        render();
-      }
+    function isCollision(grid, block, x, y, nextBlocks = block.blocks) {
+      return nextBlocks.some(([bx, by]) => {
+        const nx = x + bx;
+        const ny = y + by;
+        return (
+          nx < 0 || nx >= COLS || ny >= ROWS ||
+          (ny >= 0 && grid[ny][nx] !== 0)
+        );
+      });
     }
 
-    function rotate(shape) {
-      const N = shape.length;
-      const result = Array.from({ length: N }, () => Array(N).fill(0));
-
-      for (let y = 0; y < N; y++) {
-        for (let x = 0; x < N; x++) {
-          result[x][N - 1 - y] = shape[y][x];
-        }
+    function moveBlock(dx, dy) {
+      const block = gameState.currentBlock;
+      const nx = block.x + dx;
+      const ny = block.y + dy;
+      if (!isCollision(gameState.grid, block, nx, ny)) {
+        block.x = nx;
+        block.y = ny;
+        render();
       }
-
-      return result;
     }
 
     function rotateBlock() {
       const block = gameState.currentBlock;
-      const rotatedShape = rotate(block.shape);
-
-      if (!isCollision(gameState.grid, block, block.x, block.y, rotatedShape)) {
-        block.shape = rotatedShape;
+      if (!block.center) return;
+      const [cx, cy] = block.center;
+      const rotated = block.blocks.map(([x, y]) => {
+        const relX = x - cx;
+        const relY = y - cy;
+        const newX = -relY + cx;
+        const newY = relX + cy;
+        return [newX, newY];
+      });
+      if (!isCollision(gameState.grid, block, block.x, block.y, rotated)) {
+        block.blocks = rotated;
         render();
       }
     }
 
-    function isCollision(grid, block, nextX, nextY, nextShape) {
-      const shape = nextShape || block.shape;
-
-      return !shape.every((row, y) => {
-        return row.every((value, x) => {
-          if (value === 0) return true;
-
-          const newX = nextX + x;
-          const newY = nextY + y;
-
-          const insideBoard = newX >= 0 && newX < COLS && newY < ROWS;
-          const notBlocked = newY < 0 || (grid[newY] && grid[newY][newX] === 0);
-          return insideBoard && notBlocked;
-        });
-      });
-    }
-
     function hardDrop() {
       const block = gameState.currentBlock;
-      let dropY = block.y;
-
-      // 아래로 계속 떨어뜨리면서 충돌 안 나는 지점 찾기
-      while (!isCollision(gameState.grid, block, block.x, dropY + 1)) {
-        dropY++;
+      while (!isCollision(gameState.grid, block, block.x, block.y + 1)) {
+        block.y++;
       }
-
-      // 최종 위치에 블럭 위치 고정
-      block.y = dropY;
       render();
-
-      // 블럭 고정 처리 (grid에 반영)
       fixBlockToGrid();
     }
 
     function fixBlockToGrid() {
       const { grid, currentBlock: block } = gameState;
-
-      block.shape.forEach((row, y) => {
-        row.forEach((value, x) => {
-          if (value > 0) {
-            const gx = block.x + x;
-            const gy = block.y + y;
-
-            if (gy >= 0) grid[gy][gx] = value;  // 격자에 블럭 고정
-          }
-        });
+      block.blocks.forEach(([x, y]) => {
+        const gx = block.x + x;
+        const gy = block.y + y;
+        if (gy >= 0) grid[gy][gx] = 1;
       });
     }
 
@@ -258,7 +162,7 @@
       const move = MOVES[e.keyCode];
       if (move) {
         e.preventDefault();
-          moveBlock(move.dx, move.dy);
+        moveBlock(move.dx, move.dy);
       } else if (e.keyCode === KEY.UP) {
         e.preventDefault();
         rotateBlock();
@@ -273,7 +177,7 @@
       gameState.currentBlock = createBlock();
       render();
     }
-    
+
     setupCanvas();
     drawGrid();
     document.addEventListener('keydown', handleKeyDown);
