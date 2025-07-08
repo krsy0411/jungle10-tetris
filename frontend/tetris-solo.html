@@ -11,7 +11,7 @@
     <div class="flex flex-col justify-start text-green-500 text-2xl space-y-4">
       <div><strong>이름</strong></div>
       <div id="score">점수: 0</div>
-      <div id="time">남은 시간: 0sec</div>
+      <div id="time">남은 시간: 30sec</div>
       <button id="play-btn" class="bg-green-500 text-white px-4 py-2 rounded-md">Play</button>
     </div>
   </div>
@@ -59,7 +59,9 @@
     const time = {
       start: 0,
       elapsed: 0,
-      interval: 1000
+      interval: 1000,
+      remaining: 30,
+      lastTick: 0
     };
 
     let score = 0;
@@ -75,6 +77,10 @@
       return Array.from({ length: ROWS }, () => Array(COLS).fill(0));
     }
 
+    function updateTime() {
+      document.getElementById('time').textContent = `남은 시간: ${time.remaining}sec`;
+    }
+
     function startGame() {
       game.grid = initializeBoard();
       game.current = generateBlock();
@@ -82,9 +88,13 @@
       score = 0;
       updateScore();
       time.start = performance.now();
+      time.remaining = 30;
+      time.lastTick = 0;
+      updateTime();
       animate();
       render();
     }
+
 
     function render() {
       clear();
@@ -271,9 +281,23 @@
 
       time.elapsed = now - time.start;
 
+      // 자동 낙하
       if (time.elapsed > time.interval) {
         time.start = now;
         move(0, 1);
+      }
+
+      // 남은 시간 감소 처리 (1초마다)
+      if (Math.floor(now / 1000) !== Math.floor(time.lastTick / 1000)) {
+        time.remaining--;
+        time.lastTick = now;
+        updateTime();
+
+        if (time.remaining <= 0) {
+          game.over = true;
+          render();
+          return;
+        }
       }
 
       render();
