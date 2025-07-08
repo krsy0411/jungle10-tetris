@@ -1,23 +1,21 @@
 from flask_socketio import emit, join_room, leave_room, disconnect
-from flask_jwt_extended import decode_token
-from flask import current_app, request, session
+from flask import current_app, request
+from flask_jwt_extended import decode_token, get_jwt_identity
 from app.models.user import User
 from app.models.game_room import GameRoom
 
 
-def authenticate_socket(auth_data):
-    """Socket.IO 연결 시 JWT 토큰 인증"""
+def authenticate_socket_jwt(token):
+    """Socket.IO 연결 시 JWT 기반 인증"""
     try:
-        token = auth_data.get('token') if auth_data else None
-        
         if not token:
-            return None, "토큰이 제공되지 않았습니다"
+            return None, "인증 토큰이 필요합니다"
         
-        # JWT 토큰 디코딩
-        decoded_token = decode_token(token)
-        user_id = decoded_token.get('sub')  # JWT identity
-        
-        if not user_id:
+        # JWT 토큰 검증
+        try:
+            decoded = decode_token(token)
+            user_id = decoded['sub']  # JWT subject claim
+        except Exception as e:
             return None, "유효하지 않은 토큰입니다"
         
         # 사용자 존재 여부 확인
@@ -25,28 +23,31 @@ def authenticate_socket(auth_data):
         if not user:
             return None, "사용자를 찾을 수 없습니다"
         
-        # 세션에 사용자 정보 저장
-        session['user_id'] = user_id
-        session['user_name'] = user.name
+        return user, None
+        
+    except Exception as e:
+        current_app.logger.error(f"Socket JWT authentication error: {str(e)}")
+        return None, "인증 실패"
+
+
+def get_current_user_from_jwt(token):
+    """JWT 토큰에서 현재 사용자 정보 조회"""
+    try:
+        if not token:
+            return None, "인증 토큰이 필요합니다"
+        
+        decoded = decode_token(token)
+        user_id = decoded['sub']
+        
+        user = User.find_by_user_id(user_id)
+        if not user:
+            return None, "사용자를 찾을 수 없습니다"
         
         return user, None
         
     except Exception as e:
-        current_app.logger.error(f"Socket authentication error: {str(e)}")
+        current_app.logger.error(f"Get user from JWT error: {str(e)}")
         return None, "인증 실패"
-
-
-def get_current_user():
-    """현재 세션의 사용자 정보 조회"""
-    user_id = session.get('user_id')
-    if not user_id:
-        return None, "인증되지 않은 사용자입니다"
-    
-    user = User.find_by_user_id(user_id)
-    if not user:
-        return None, "사용자를 찾을 수 없습니다"
-    
-    return user, None
 
 
 def register_connection_events(socketio):
@@ -54,10 +55,15 @@ def register_connection_events(socketio):
     
     @socketio.on('connect')
     def handle_connect(auth):
-        """클라이언트 연결 시"""
+        """클라이언트 연결 시 (JWT 기반 인증)"""
         try:
-            # 인증 정보 확인
-            user, error = authenticate_socket(auth)
+            # JWT 토큰에서 인증 정보 추출
+            token = None
+            if auth and isinstance(auth, dict) and 'token' in auth:
+                token = auth['token']
+            
+            # JWT 기반 인증 확인
+            user, error = authenticate_socket_jwt(token)
             
             if error:
                 current_app.logger.warning(f"Socket connection denied: {error}")
@@ -81,6 +87,7 @@ def register_connection_events(socketio):
     @socketio.on('disconnect')
     def handle_disconnect():
         """클라이언트 연결 해제 시"""
+        # JWT 정보는 연결 시에만 확인하므로 disconnect에서는 단순 로그
         current_app.logger.info(f"Socket disconnected")
 
 
@@ -89,10 +96,11 @@ def register_room_events(socketio):
     
     @socketio.on('room:join')
     def handle_room_join(data):
-        """방 참가"""
+        """방 참가 (JWT 인증)"""
         try:
-            # 인증 확인
-            user, error = get_current_user()
+            # JWT 토큰 인증
+            token = data.get('token')
+            user, error = get_current_user_from_jwt(token)
             
             if error:
                 emit('error', {'type': 'AUTH_ERROR', 'message': error})
@@ -132,10 +140,11 @@ def register_room_events(socketio):
     
     @socketio.on('room:leave')
     def handle_room_leave(data):
-        """방 나가기"""
+        """방 나가기 (JWT 인증)"""
         try:
-            # 인증 확인
-            user, error = get_current_user()
+            # JWT 토큰 인증
+            token = data.get('token')
+            user, error = get_current_user_from_jwt(token)
             
             if error:
                 emit('error', {'type': 'AUTH_ERROR', 'message': error})
@@ -166,10 +175,11 @@ def register_game_events(socketio):
     
     @socketio.on('game:start')
     def handle_game_start(data):
-        """게임 시작 (방장이 실행)"""
+        """게임 시작 (방장이 실행, JWT 인증)"""
         try:
-            # 인증 확인
-            user, error = get_current_user()
+            # JWT 토큰 인증
+            token = data.get('token')
+            user, error = get_current_user_from_jwt(token)
             
             if error:
                 emit('error', {'type': 'AUTH_ERROR', 'message': error})
@@ -212,10 +222,11 @@ def register_game_events(socketio):
     
     @socketio.on('game:score_update')
     def handle_score_update(data):
-        """실시간 점수 업데이트"""
+        """실시간 점수 업데이트 (JWT 인증)"""
         try:
-            # 인증 확인
-            user, error = get_current_user()
+            # JWT 토큰 인증
+            token = data.get('token')
+            user, error = get_current_user_from_jwt(token)
             
             if error:
                 emit('error', {'type': 'AUTH_ERROR', 'message': error})
@@ -248,22 +259,27 @@ def register_game_events(socketio):
             current_app.logger.error(f"Score update error: {str(e)}")
             emit('error', {'type': 'SERVER_ERROR', 'message': '점수 업데이트 중 오류가 발생했습니다'})
     
-    @socketio.on('game:game_over')
-    def handle_game_over(data):
-        """게임 오버 처리"""
+    @socketio.on('game:end')
+    def handle_game_end(data):
+        """게임 종료 처리 (JWT 인증) - 플레이어가 게임 완료 시 호출"""
         try:
-            # 인증 확인
-            user, error = get_current_user()
+            # JWT 토큰 인증
+            token = data.get('token')
+            user, error = get_current_user_from_jwt(token)
             
             if error:
                 emit('error', {'type': 'AUTH_ERROR', 'message': error})
                 return
             
             room_id = data.get('room_id')
-            final_score = data.get('final_score', 0)
+            final_score = data.get('score', 0)
             
             if not room_id:
                 emit('error', {'type': 'VALIDATION_ERROR', 'message': '방 번호가 필요합니다'})
+                return
+            
+            if not isinstance(final_score, int) or final_score < 0:
+                emit('error', {'type': 'VALIDATION_ERROR', 'message': '유효하지 않은 점수입니다'})
                 return
             
             # 방 조회
@@ -279,27 +295,53 @@ def register_game_events(socketio):
             all_finished = all(p.get('score', 0) > 0 for p in room.participants)
             
             if all_finished:
-                # 승자 결정
+                # 승자 결정 (점수가 가장 높은 플레이어)
                 winner = max(room.participants, key=lambda p: p.get('score', 0))
-                loser = min(room.participants, key=lambda p: p.get('score', 0))
-                final_scores = {p['name']: p.get('score', 0) for p in room.participants}
+                scores = {p['user_id']: p.get('score', 0) for p in room.participants}
                 
                 # 게임 종료
-                room.end_game()
+                room.end_game(scores)
                 
-                # 게임 오버 알림을 방 내 모든 사용자에게 브로드캐스트
-                socketio.emit('game:game_over', {
+                # 게임 기록 저장
+                from app.models.game_record import GameRecord
+                players_data = [
+                    {'user_id': p['user_id'], 'name': p['name'], 'score': p.get('score', 0)}
+                    for p in room.participants
+                ]
+                
+                GameRecord.create_multiplayer_record(
+                    room_id, players_data, scores, winner['user_id'], 60
+                )
+                
+                # 사용자 통계 업데이트
+                for participant in room.participants:
+                    participant_user = User.find_by_user_id(participant['user_id'])
+                    if participant_user:
+                        is_winner = participant['user_id'] == winner['user_id']
+                        game_result = 'win' if is_winner else 'loss'
+                        participant_user.update_stats(
+                            score_gained=participant.get('score', 0),
+                            game_result=game_result
+                        )
+                
+                # 게임 종료 결과를 방 내 모든 사용자에게 브로드캐스트
+                socketio.emit('game:end', {
                     'room_id': room_id,
-                    'game_over': True,
-                    'winner': winner['name'],
-                    'loser': loser['name'],
-                    'final_scores': final_scores
-                }, room=room_id)
+                    'message': '게임이 종료되었습니다',
+                    'final_scores': scores,
+                    'winner': winner['name']
+                }, room=f'room_{room_id}')
+            else:
+                # 대기 중 알림 (상대방이 아직 완료하지 않음)
+                socketio.emit('game:waiting', {
+                    'room_id': room_id,
+                    'message': '상대방이 게임을 완료하기를 기다리는 중...',
+                    'your_score': final_score
+                }, room=request.sid)  # 현재 사용자에게만 전송
             
         except Exception as e:
-            current_app.logger.error(f"Game over error: {str(e)}")
+            current_app.logger.error(f"Game end error: {str(e)}")
             emit('error', {'type': 'SERVER_ERROR', 'message': '게임 종료 처리 중 오류가 발생했습니다'})
-
 
 def register_all_events(socketio):
     """모든 Socket.IO 이벤트 등록"""

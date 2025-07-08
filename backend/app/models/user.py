@@ -18,18 +18,19 @@ class User:
     """사용자 모델"""
     
     def __init__(self, user_id, name, password=None, hashed_password=None, created_at=None, 
-                 total_score=0, games_played=0, wins=0, losses=0, solo_high_score=0, refresh_token_version=0):
+                 wins=0, solo_high_score=0, 
+                 refresh_token_version=0, refresh_token_issued_at=None, last_login=None, is_active=True):
         self.user_id = user_id
         self.name = name
         self.password = password
         self.hashed_password = hashed_password or (generate_password_hash(password) if password else None)
         self.created_at = created_at or datetime.utcnow()
-        self.total_score = total_score
-        self.games_played = games_played
+        self.last_login = last_login
+        self.is_active = is_active
         self.wins = wins
-        self.losses = losses
         self.solo_high_score = solo_high_score
         self.refresh_token_version = refresh_token_version
+        self.refresh_token_issued_at = refresh_token_issued_at or datetime.utcnow()
 
     def check_password(self, password):
         """비밀번호 확인"""
@@ -45,10 +46,7 @@ class User:
         
         if include_stats:
             data.update({
-                'total_score': self.total_score,
-                'games_played': self.games_played,
                 'wins': self.wins,
-                'losses': self.losses,
                 'solo_high_score': self.solo_high_score
             })
         
@@ -60,12 +58,12 @@ class User:
             '_id': self.user_id,
             'user_id': self.user_id,
             'name': self.name,
-            'hashed_password': self.hashed_password,
+            'password_hash': self.hashed_password,  # 명세서에 맞게 필드명 변경
             'created_at': self.created_at,
-            'total_score': self.total_score,
-            'games_played': self.games_played,
+            'last_login': self.last_login,
+            'refresh_token_issued_at': self.refresh_token_issued_at,
+            'is_active': self.is_active,  # 명세서에 있는 필드 추가
             'wins': self.wins,
-            'losses': self.losses,
             'solo_high_score': self.solo_high_score,
             'refresh_token_version': self.refresh_token_version
         }
@@ -79,14 +77,14 @@ class User:
         return User(
             user_id=doc.get('user_id'),
             name=doc.get('name'),
-            hashed_password=doc.get('hashed_password'),
+            hashed_password=doc.get('password_hash') or doc.get('hashed_password'),  # 두 필드명 모두 지원
             created_at=doc.get('created_at'),
-            total_score=doc.get('total_score', 0),
-            games_played=doc.get('games_played', 0),
+            last_login=doc.get('last_login'),
+            is_active=doc.get('is_active', True),
             wins=doc.get('wins', 0),
-            losses=doc.get('losses', 0),
             solo_high_score=doc.get('solo_high_score', 0),
-            refresh_token_version=doc.get('refresh_token_version', 0)
+            refresh_token_version=doc.get('refresh_token_version', 0),
+            refresh_token_issued_at=doc.get('refresh_token_issued_at')
         )
 
     @staticmethod
@@ -115,13 +113,8 @@ class User:
 
     def update_stats(self, score_gained=0, game_result=None, solo_score=None):
         """게임 통계 업데이트"""
-        self.games_played += 1
-        self.total_score += score_gained
-        
         if game_result == 'win':
             self.wins += 1
-        elif game_result == 'loss':
-            self.losses += 1
         
         if solo_score and solo_score > self.solo_high_score:
             self.solo_high_score = solo_score
@@ -133,6 +126,22 @@ class User:
         self.refresh_token_version += 1
         self.save()
 
+    def is_refresh_token_valid(self, token_issued_at):
+        """리프레시 토큰이 유효한지 확인"""
+        if not self.refresh_token_issued_at or not token_issued_at:
+            return False
+        return token_issued_at >= self.refresh_token_issued_at
+    
+    def deactivate_account(self):
+        """계정 비활성화"""
+        self.is_active = False
+        self.save()
+    
+    def activate_account(self):
+        """계정 활성화"""
+        self.is_active = True
+        self.save()
+
     @staticmethod
     def get_ranking(limit=10):
         """랭킹 조회"""
@@ -140,9 +149,8 @@ class User:
         pipeline = [
             {
                 '$sort': {
-                    'total_score': -1,
                     'wins': -1,
-                    'games_played': 1
+                    'solo_high_score': -1
                 }
             },
             {'$limit': limit}

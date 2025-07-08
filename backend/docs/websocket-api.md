@@ -35,6 +35,23 @@ socket.on("connect", () => {
 });
 ```
 
+### `connect_success`
+
+**Direction**: Server → Client  
+**Description**: JWT 인증 성공 후 연결 확인
+
+```javascript
+socket.on('connect_success', (data) => {
+  console.log(`${data.name}님, ${data.message}`);
+  // data 구조
+  {
+    user_id: "user123",
+    name: "홍길동",
+    message: "서버에 연결되었습니다"
+  }
+});
+```
+
 ### `disconnect`
 
 **Direction**: Server → Client  
@@ -46,6 +63,22 @@ socket.on("disconnect", (reason) => {
 });
 ```
 
+### `connect_success`
+
+**Direction**: Server → Client  
+**Description**: 인증 성공 후 연결 확인
+
+```javascript
+socket.on('connect_success', (data) => {
+  // data 구조
+  {
+    user_id: "user123",
+    name: "홍길동",
+    message: "서버에 연결되었습니다"
+  }
+});
+```
+
 ### `error`
 
 **Direction**: Server → Client  
@@ -54,6 +87,11 @@ socket.on("disconnect", (reason) => {
 ```javascript
 socket.on("error", (error) => {
 	console.error("Socket error:", error);
+	// error 구조
+	{
+		type: "AUTH_ERROR" | "VALIDATION_ERROR" | "ROOM_NOT_FOUND" | "PERMISSION_DENIED" | "SERVER_ERROR",
+		message: "오류 메시지"
+	}
 });
 ```
 
@@ -62,14 +100,14 @@ socket.on("error", (error) => {
 ### `room:join`
 
 **Direction**: Client → Server  
-**Description**: 특정 방에 참가
+**Description**: 특정 방에 참가 (JWT 토큰 필요)
 
 **Client Request**:
 
 ```javascript
 socket.emit("room:join", {
+	token: "your_jwt_access_token_here",
 	room_id: 123,
-	user_name: "홍길동",
 });
 ```
 
@@ -89,14 +127,14 @@ socket.on('room:join', (data) => {
 ### `room:leave`
 
 **Direction**: Client → Server  
-**Description**: 방에서 나가기
+**Description**: 방에서 나가기 (JWT 토큰 필요)
 
 **Client Request**:
 
 ```javascript
 socket.emit("room:leave", {
+	token: "your_jwt_access_token_here",
 	room_id: 123,
-	user_name: "홍길동",
 });
 ```
 
@@ -129,12 +167,40 @@ socket.on('room:update', (data) => {
 });
 ```
 
+### `room:player_joined`
+
+**Direction**: Server → Client  
+**Description**: 새 플레이어가 방에 참가했을 때 발생 (방 참가 후 자동 발생)
+
+```javascript
+socket.on('room:player_joined', (data) => {
+  // data 구조
+  {
+    room_id: 123,
+    user_name: "김철수",
+    players: ["홍길동", "김철수"],
+    message: "김철수님이 방에 참가했습니다"
+  }
+});
+```
+
 ## 게임 이벤트
 
 ### `game:start`
 
-**Direction**: Server → Client  
-**Description**: 게임 시작 알림 (방장이 게임 시작 시 자동 발송)
+**Direction**: Client → Server & Server → Client  
+**Description**: 게임 시작 (방장이 시작하거나 2명 참가 시 자동 시작)
+
+**Client Request** (방장이 수동으로 시작하는 경우):
+
+```javascript
+socket.emit("game:start", {
+	token: "your_jwt_access_token_here",
+	room_id: 123,
+});
+```
+
+**Server Broadcast** (방 내 모든 사용자에게):
 
 ```javascript
 socket.on('game:start', (data) => {
@@ -145,7 +211,7 @@ socket.on('game:start', (data) => {
       { name: "홍길동", score: 0 },
       { name: "김철수", score: 0 }
     ],
-    game_time: 60  // 게임 시간 60초 (클라이언트가 카운트다운 처리)
+    game_time: 60  // 게임 시간 60초
   }
 });
 ```
@@ -153,14 +219,14 @@ socket.on('game:start', (data) => {
 ### `game:score_update`
 
 **Direction**: Client ↔ Server  
-**Description**: 실시간 점수 업데이트
+**Description**: 실시간 점수 업데이트 (JWT 토큰 필요)
 
 **Client Request** (점수 변경 시):
 
 ```javascript
 socket.emit("game:score_update", {
+	token: "your_jwt_access_token_here",
 	room_id: 123,
-	user_name: "홍길동",
 	score: 1500,
 });
 ```
@@ -180,35 +246,50 @@ socket.on('game:score_update', (data) => {
 });
 ```
 
-### `game:game_over`
+### `game:end`
 
 **Direction**: Client → Server & Server → Client  
-**Description**: 게임 종료 처리
+**Description**: 게임 종료 처리 (플레이어가 게임 완료 시 호출)
 
-**Client Request** (게임 오버 시):
+**Client Request** (게임 완료 시):
 
 ```javascript
-socket.emit("game:game_over", {
+socket.emit("game:end", {
+	token: "your_jwt_access_token_here",
 	room_id: 123,
-	user_name: "홍길동",
-	final_score: 2500,
+	score: 2500,
 });
 ```
 
-**Server Broadcast** (방 내 모든 사용자에게):
+**Server Broadcast** (모든 플레이어 완료 시 방 내 모든 사용자에게):
 
 ```javascript
-socket.on('game:game_over', (data) => {
+socket.on('game:end', (data) => {
   // data 구조
   {
     room_id: 123,
-    game_over: true,
-    winner: "김철수",
-    loser: "홍길동",
+    message: "게임이 종료되었습니다",
     final_scores: {
       "홍길동": 2500,
       "김철수": 3200
-    }
+    },
+    winner: "김철수"
+  }
+});
+```
+
+### `game:waiting`
+
+**Direction**: Server → Client  
+**Description**: 상대방이 게임을 완료하기를 기다리는 중 (현재 사용자에게만 전송)
+
+```javascript
+socket.on('game:waiting', (data) => {
+  // data 구조
+  {
+    room_id: 123,
+    message: "상대방이 게임을 완료하기를 기다리는 중...",
+    your_score: 2500
   }
 });
 ```
@@ -236,6 +317,23 @@ socket.on('game:disconnect', (data) => {
 
 ```typescript
 interface ServerToClientEvents {
+	// 연결 관리
+	connect_success: (data: {
+		user_id: string;
+		name: string;
+		message: string;
+	}) => void;
+
+	error: (data: {
+		type:
+			| "AUTH_ERROR"
+			| "VALIDATION_ERROR"
+			| "ROOM_NOT_FOUND"
+			| "PERMISSION_DENIED"
+			| "SERVER_ERROR";
+		message: string;
+	}) => void;
+
 	// 방 관리
 	"room:join": (data: {
 		room_id: number;
@@ -255,6 +353,13 @@ interface ServerToClientEvents {
 		players: string[];
 	}) => void;
 
+	"room:player_joined": (data: {
+		room_id: number;
+		user_name: string;
+		players: string[];
+		message: string;
+	}) => void;
+
 	// 게임
 	"game:start": (data: {
 		room_id: number;
@@ -267,12 +372,17 @@ interface ServerToClientEvents {
 		players: Array<{ name: string; score: number }>;
 	}) => void;
 
-	"game:game_over": (data: {
+	"game:end": (data: {
 		room_id: number;
-		game_over: boolean;
-		winner: string;
-		loser: string;
+		message: string;
 		final_scores: Record<string, number>;
+		winner: string;
+	}) => void;
+
+	"game:waiting": (data: {
+		room_id: number;
+		message: string;
+		your_score: number;
 	}) => void;
 
 	"game:disconnect": (data: {
@@ -289,22 +399,17 @@ interface ServerToClientEvents {
 ```typescript
 interface ClientToServerEvents {
 	// 방 관리
-	"room:join": (data: { room_id: number; user_name: string }) => void;
-
-	"room:leave": (data: { room_id: number; user_name: string }) => void;
+	"room:join": (data: { token: string; room_id: number }) => void;
+	"room:leave": (data: { token: string; room_id: number }) => void;
 
 	// 게임
+	"game:start": (data: { token: string; room_id: number }) => void;
 	"game:score_update": (data: {
+		token: string;
 		room_id: number;
-		user_name: string;
 		score: number;
 	}) => void;
-
-	"game:game_over": (data: {
-		room_id: number;
-		user_name: string;
-		final_score: number;
-	}) => void;
+	"game:end": (data: { token: string; room_id: number; score: number }) => void;
 }
 ```
 
@@ -345,15 +450,20 @@ socket.on("error", (error) => {
 ### 방 참가
 
 ```javascript
-function joinRoom(roomId, userName) {
+function joinRoom(roomId) {
 	socket.emit("room:join", {
+		token: localStorage.getItem("access_token"),
 		room_id: roomId,
-		user_name: userName,
 	});
 }
 
 // 방 참가 알림 수신
 socket.on("room:join", (data) => {
+	console.log(data.message);
+});
+
+// 플레이어 참가 알림 수신
+socket.on("room:player_joined", (data) => {
 	console.log(data.message);
 	updatePlayerList(data.players);
 });
@@ -370,10 +480,10 @@ socket.on("game:start", (data) => {
 });
 
 // 점수 업데이트 전송
-function updateScore(roomId, userName, newScore) {
+function updateScore(roomId, newScore) {
 	socket.emit("game:score_update", {
+		token: localStorage.getItem("access_token"),
 		room_id: roomId,
-		user_name: userName,
 		score: newScore,
 	});
 }
@@ -383,17 +493,23 @@ socket.on("game:score_update", (data) => {
 	updateScoreDisplay(data.players);
 });
 
-// 게임 오버 처리
-function gameOver(roomId, userName, finalScore) {
-	socket.emit("game:game_over", {
+// 게임 종료 처리
+function gameEnd(roomId, finalScore) {
+	socket.emit("game:end", {
+		token: localStorage.getItem("access_token"),
 		room_id: roomId,
-		user_name: userName,
-		final_score: finalScore,
+		score: finalScore,
 	});
 }
 
-socket.on("game:game_over", (data) => {
+// 게임 종료 결과 수신
+socket.on("game:end", (data) => {
 	showGameResult(data.winner, data.final_scores);
+});
+
+// 대기 상태 수신
+socket.on("game:waiting", (data) => {
+	showWaitingMessage(data.message, data.your_score);
 });
 ```
 
@@ -414,13 +530,17 @@ socket.on("error", (error) => {
 			// 존재하지 않는 방
 			showError("방을 찾을 수 없습니다");
 			break;
-		case "ROOM_FULL":
-			// 방이 가득 참
-			showError("방이 가득 차서 참가할 수 없습니다");
+		case "VALIDATION_ERROR":
+			// 유효성 검증 실패
+			showError(error.message);
 			break;
-		case "GAME_IN_PROGRESS":
-			// 이미 게임이 진행 중
-			showError("게임이 이미 진행 중입니다");
+		case "PERMISSION_DENIED":
+			// 권한 없음 (예: 방장이 아닌데 게임 시작 시도)
+			showError("권한이 없습니다");
+			break;
+		case "SERVER_ERROR":
+			// 서버 내부 오류
+			showError("서버 오류가 발생했습니다");
 			break;
 		default:
 			showError("알 수 없는 오류가 발생했습니다");
@@ -438,10 +558,10 @@ socket.on("error", (error) => {
 import { throttle } from "lodash";
 
 // 점수 업데이트를 100ms마다 한 번만 전송
-const throttledScoreUpdate = throttle((roomId, userName, score) => {
+const throttledScoreUpdate = throttle((roomId, score) => {
 	socket.emit("game:score_update", {
+		token: localStorage.getItem("access_token"),
 		room_id: roomId,
-		user_name: userName,
 		score: score,
 	});
 }, 100);
@@ -462,6 +582,7 @@ socket.on("disconnect", () => {
 
 ---
 
-**문서 버전**: 1.0  
-**작성일**: 2025년 7월 8일  
+**문서 버전**: 2.0  
+**작성일**: 2025년 7월 9일  
+**업데이트**: JWT 인증 기반으로 전면 개편, 새로운 이벤트 추가  
 **관련 문서**: product-requirements.md, openapi.yaml

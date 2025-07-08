@@ -1,24 +1,16 @@
 <!DOCTYPE html>
 <html lang="ko">
 	<head>
-		<!-- Required meta tags -->
 		<meta charset="utf-8" />
 		<meta
 			name="viewport"
 			content="width=device-width, initial-scale=1, shrink-to-fit=no"
 		/>
-
-		<!-- JS -->
-		<script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
 		<script src="https://cdn.tailwindcss.com"></script>
-		<script
-			src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"
-			crossorigin="anonymous"
-		></script>
 
 		<!-- 구글폰트 -->
 		<link
-			href="https://fonts.googleapis.com/css?family=Stylish&display=swap"
+			href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap"
 			rel="stylesheet"
 		/>
 
@@ -26,18 +18,55 @@
 	</head>
 
 	<body>
-		<main>
-			<h1>정글 테트리스</h1>
+		<main class="flex flex-col items-center">
+			<h1
+				class="flex flex-col justify-center text-center text-green-400 font-bold text-8xl flex-shrink-0 pt-20"
+				style="font-family: Inter"
+			>
+				정글 테트리스
+			</h1>
 
-			<section class="flex">
-				<button id="singleGameBtn">혼자하기</button>
-				<button id="createRoomBtn">방 생성</button>
-				<button id="findRoomsBtn">방 찾기</button>
+			<section class="flex items-center gap-5 pt-10">
+				<button
+					id="singleGameBtn"
+					class="w-48 h-48 shrink-0 bg-green-400 hover:bg-green-600 transition-colors duration-200 rounded-2xl text-white font-bold text-3xl"
+					style="font-family: Inter"
+				>
+					혼자하기
+				</button>
+				<a
+					href="{{ url_for('main.rooms') }}"
+					id="createRoomBtn"
+					class="w-48 h-48 shrink-0 bg-green-400 hover:bg-green-600 transition-colors duration-200 rounded-2xl text-white font-bold text-3xl flex items-center justify-center"
+					style="font-family: Inter"
+				>
+					방 생성
+				</a>
+				<button
+					id="findRoomsBtn"
+					class="w-48 h-48 shrink-0 bg-green-400 hover:bg-green-600 transition-colors duration-200 rounded-2xl text-white font-bold text-3xl"
+					style="font-family: Inter"
+				>
+					방 찾기
+				</button>
 			</section>
 
-			<footer class="flex">
-				<button id="keyGuideBtn">키 설명</button>
-				<button id="rankingBtn">랭킹</button>
+			<footer class="flex items-center gap-5 pt-10">
+				<button
+					id="keyGuideBtn"
+					class="shrink-0 bg-green-400 hover:bg-green-600 transition-colors duration-200 text-white text-center font-bold w-24 h-16 rounded-xl text-2xl"
+					style="font-family: Inter"
+				>
+					키 설명
+				</button>
+				<a
+					href="{{ url_for('main.ranking') }}"
+					id="rankingBtn"
+					class="shrink-0 bg-white text-green-400 text-center font-bold w-24 h-16 rounded-xl text-2xl border border-4 border-green-400 hover:border-green-600 hover:text-green-600 transition-colors duration-200 flex items-center justify-center"
+					style="font-family: Inter"
+				>
+					랭킹
+				</a>
 			</footer>
 		</main>
 

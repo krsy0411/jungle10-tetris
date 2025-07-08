@@ -59,17 +59,10 @@ def create_app():
     init_db()
     
     # 블루프린트 등록
-    from app.routes.auth import auth_bp
-    from app.routes.rooms import rooms_bp
-    from app.routes.game import game_bp
-    from app.routes.ranking import ranking_bp
     from app.routes.main import main_bp
     from app.routes.docs import docs_bp, swaggerui_blueprint
     
-    app.register_blueprint(auth_bp)
-    app.register_blueprint(rooms_bp)
-    app.register_blueprint(game_bp)
-    app.register_blueprint(ranking_bp)
+    # 모든 라우트를 main_bp에 통합 - API 블루프린트들 제거
     app.register_blueprint(main_bp)
     app.register_blueprint(docs_bp)
     app.register_blueprint(swaggerui_blueprint)
