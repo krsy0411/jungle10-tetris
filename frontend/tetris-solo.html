@@ -127,7 +127,7 @@
     function render() {
       clearCanvas();
       drawGrid();
-      drawFixedBlocks();        // 고정된 블럭 먼저 그림
+      drawFixedBlocks();
       if (gameState.currentBlock) drawBlock(gameState.currentBlock);
     }
 
@@ -218,7 +218,25 @@
         const y = block.y + dy;
         if (y >= 0) grid[y][x] = colorIndex;
       });
+
+      clearLines();
     }
+
+
+    function clearLines() {
+      const { grid } = gameState;
+      let linesCleared = 0;
+
+      for (let y = ROWS - 1; y >= 0; y--) {
+        if (grid[y].every(cell => cell !== 0)) {
+          grid.splice(y, 1); // 줄 제거
+          grid.unshift(Array(COLS).fill(0)); // 맨 위에 빈 줄 추가
+          linesCleared++;
+          y++; // 같은 y 다시 검사 (위에서 줄이 내려왔으므로)
+        }
+      }
+    }   
+
 
     function handleKeyDown(e) {
       const move = MOVES[e.keyCode];
