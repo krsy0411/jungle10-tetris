@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="ko">
+	<head>
+		<meta charset="utf-8" />
+		<meta
+			name="viewport"
+			content="width=device-width, initial-scale=1, shrink-to-fit=no"
+		/>
+		<script src="https://cdn.tailwindcss.com"></script>
+
+		<!-- 구글폰트 -->
+		<link
+			href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap"
+			rel="stylesheet"
+		/>
+
+		<title>정글 테트리스</title>
+	</head>
+
+	<body>
+		<main class="flex flex-col items-center">
+			<h1
+				class="flex flex-col justify-center text-center text-green-400 font-bold text-8xl flex-shrink-0 pt-20"
+				style="font-family: Inter"
+			>
+				정글 테트리스
+			</h1>
+
+			<section class="flex items-center gap-5 pt-10">
+				<button
+					id="singleGameBtn"
+					class="w-48 h-48 shrink-0 bg-green-400 hover:bg-green-600 transition-colors duration-200 rounded-2xl text-white font-bold text-3xl"
+					style="font-family: Inter"
+				>
+					혼자하기
+				</button>
+				<a
+					href="{{ url_for('main.rooms') }}"
+					id="createRoomBtn"
+					class="w-48 h-48 shrink-0 bg-green-400 hover:bg-green-600 transition-colors duration-200 rounded-2xl text-white font-bold text-3xl flex items-center justify-center"
+					style="font-family: Inter"
+				>
+					방 생성
+				</a>
+				<button
+					id="findRoomsBtn"
+					class="w-48 h-48 shrink-0 bg-green-400 hover:bg-green-600 transition-colors duration-200 rounded-2xl text-white font-bold text-3xl"
+					style="font-family: Inter"
+				>
+					방 찾기
+				</button>
+			</section>
+
+			<footer class="flex items-center gap-5 pt-10">
+				<button
+					id="keyGuideBtn"
+					class="shrink-0 bg-green-400 hover:bg-green-600 transition-colors duration-200 text-white text-center font-bold w-24 h-16 rounded-xl text-2xl"
+					style="font-family: Inter"
+				>
+					키 설명
+				</button>
+				<a
+					href="{{ url_for('main.ranking') }}"
+					id="rankingBtn"
+					class="shrink-0 bg-white text-green-400 text-center font-bold w-24 h-16 rounded-xl text-2xl border border-4 border-green-400 hover:border-green-600 hover:text-green-600 transition-colors duration-200 flex items-center justify-center"
+					style="font-family: Inter"
+				>
+					랭킹
+				</a>
+			</footer>
+		</main>
+
+		<script>
+			// 메인 페이지 관련 JavaScript는 추후 작성 예정
+		</script>
+	</body>
+</html>

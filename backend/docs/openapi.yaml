@@ -8,21 +8,32 @@ info:
     이 API는 HTTP REST API와 함께 **Socket.IO**를 사용하여 실시간 기능을 제공합니다:
     - 실시간 방 관리 (입장/퇴장 알림)
     - 게임 중 실시간 점수 동기화
-    - 게임 시작/종료 이벤트
+    - 게임 시작/종료 이벤트 (대전 모드는 Socket.IO를 통해서만 처리)
     - 연결 상태 관리
 
     ### Socket.IO 엔드포인트
-    - **개발 서버**: `ws://localhost:5000`
+    - **개발 서버**: `ws://localhost:8000`
     - **프로덕션 서버**: `wss://api.jungletetris.com`
 
     ### 주요 Socket.IO 이벤트
-    - `room:join` - 방 참가
+    - `room:join` - 방 참가 (JWT 토큰 필요)
     - `room:leave` - 방 나가기  
-    - `room:update` - 방 정보 업데이트
-    - `game:start` - 게임 시작
+    - `room:player_joined` - 플레이어 참가 알림
+    - `game:start` - 게임 시작 (2명 참가 시 자동)
     - `game:score_update` - 점수 업데이트
-    - `game:game_over` - 게임 종료
+    - `game:end` - 게임 종료 (모든 플레이어 완료 시)
+    - `game:waiting` - 상대방 대기 중
     - `game:disconnect` - 연결 끊김 처리
+
+    ## 대전 게임 로직
+    **중요**: 대전 게임의 시작/종료 로직은 REST API에서 Socket.IO 이벤트로 완전히 이동되었습니다:
+    - **게임 시작**: 방에 2명이 참가하면 `game:start` 이벤트가 자동으로 발생
+    - **게임 종료**: 모든 플레이어가 게임을 완료하면 `game:end` 이벤트 발생
+    - **실시간 점수**: `game:score_update` 이벤트를 통한 실시간 점수 동기화
+
+    이전의 `/api/game/versus/start`와 `/api/game/versus/end` 엔드포인트는 제거되었습니다.
+
+    **📖 자세한 Socket.IO API 사양은 `websocket-api.md` 문서를 참고하세요.**
   version: 1.3.0
   contact:
     name: Jungle Tetris Team
@@ -31,7 +42,7 @@ info:
     name: MIT
     url: https://opensource.org/licenses/MIT
 servers:
-  - url: http://localhost:5000
+  - url: http://localhost:8000
     description: 개발 서버
   - url: https://api.jungletetris.com
     description: 프로덕션 서버
@@ -410,138 +421,6 @@ paths:
         "401":
           $ref: "#/components/responses/Unauthorized"
 
-  /api/game/versus/start:
-    post:
-      tags:
-        - Game
-      summary: 대전 게임 시작
-      description: |
-        1대1 대전 모드의 테트리스 게임을 시작합니다.
-
-        **📡 실시간 연동**: 게임 시작 후 Socket.IO를 통해 실시간 점수 동기화 및 게임 상태 관리가 이루어집니다.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required:
-                - room_id
-              properties:
-                room_id:
-                  type: integer
-                  description: 방 ID
-                  example: 123
-      responses:
-        "200":
-          description: 대전 게임 시작 성공
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  room_id:
-                    type: integer
-                    example: 123
-                  game_time:
-                    type: integer
-                    description: 게임 시간 (초)
-                    example: 60
-                  players:
-                    type: array
-                    items:
-                      type: object
-                      properties:
-                        name:
-                          type: string
-                        score:
-                          type: integer
-                    example:
-                      - name: "홍길동"
-                        score: 0
-                      - name: "김철수"
-                        score: 0
-                  message:
-                    type: string
-                    example: "대전 게임이 시작되었습니다"
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "404":
-          $ref: "#/components/responses/NotFound"
-
-  /api/game/versus/end:
-    post:
-      tags:
-        - Game
-      summary: 대전 게임 종료
-      description: 대전 게임의 최종 결과를 서버에 전송합니다
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required:
-                - room_id
-                - score
-              properties:
-                room_id:
-                  type: integer
-                  example: 123
-                score:
-                  type: integer
-                  minimum: 0
-                  description: 획득 점수
-                  example: 3200
-      responses:
-        "200":
-          description: 대전 게임 종료 성공
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  message:
-                    type: string
-                    example: "게임 결과가 저장되었습니다"
-                  is_winner:
-                    type: boolean
-                    description: 승리 여부
-                    example: true
-                  final_scores:
-                    type: object
-                    description: 최종 점수 정보
-                    properties:
-                      player1:
-                        type: object
-                        properties:
-                          name:
-                            type: string
-                          score:
-                            type: integer
-                      player2:
-                        type: object
-                        properties:
-                          name:
-                            type: string
-                          score:
-                            type: integer
-                    example:
-                      player1:
-                        name: "홍길동"
-                        score: 3200
-                      player2:
-                        name: "김철수"
-                        score: 2800
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "404":
-          $ref: "#/components/responses/NotFound"
-
   # 랭킹 API
   /api/ranking/score:
     get:
@@ -648,23 +527,16 @@ paths:
                           type: integer
                           description: 승리 횟수
                           example: 25
-                        total_games:
-                          type: integer
-                          description: 총 경기 수
-                          example: 40
                     example:
                       - rank: 1
                         user_name: "김철수"
                         wins: 25
-                        total_games: 40
                       - rank: 2
                         user_name: "홍길동"
                         wins: 22
-                        total_games: 35
                       - rank: 3
                         user_name: "이영희"
                         wins: 18
-                        total_games: 28
                   total_count:
                     type: integer
                     description: 전체 랭킹 수
