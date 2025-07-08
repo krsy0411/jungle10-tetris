@@ -19,7 +19,7 @@
   <script>
     const COLS = 10;
     const ROWS = 15;
-    const BLOCK_SIZE = window.innerHeight * 0.06; // 6vh
+    const BLOCK_SIZE = window.innerHeight * 0.06;
 
     const KEY = {
       LEFT: 37,
@@ -47,34 +47,13 @@
     ];
 
     const BLOCKS = [
-      { // I
-        blocks: [[-1, 0], [0, 0], [1, 0], [2, 0]],
-        center: [0, 0]
-      },
-      { // J
-        blocks: [[-1, 0], [0, 0], [1, 0], [1, -1]],
-        center: [0, 0]
-      },
-      { // L
-        blocks: [[-1, 0], [0, 0], [1, 0], [1, 1]],
-        center: [0, 0]
-      },
-      { // O (no rotation)
-        blocks: [[0, 0], [1, 0], [0, 1], [1, 1]],
-        center: null
-      },
-      { // S
-        blocks: [[-1, 0], [0, 0], [0, 1], [1, 1]],
-        center: [0, 0]
-      },
-      { // T
-        blocks: [[-1, 0], [0, 0], [1, 0], [0, 1]],
-        center: [0, 0]
-      },
-      { // Z
-        blocks: [[-1, 1], [0, 1], [0, 0], [1, 0]],
-        center: [0, 0]
-      }
+      { blocks: [[-1, 0], [0, 0], [1, 0], [2, 0]], center: [0, 0] },      // I
+      { blocks: [[-1, 0], [0, 0], [1, 0], [1, -1]], center: [0, 0] },     // J
+      { blocks: [[-1, 0], [0, 0], [1, 0], [1, 1]], center: [0, 0] },      // L
+      { blocks: [[0, 0], [1, 0], [0, 1], [1, 1]], center: null },         // O
+      { blocks: [[-1, 0], [0, 0], [0, 1], [1, 1]], center: [0, 0] },      // S
+      { blocks: [[-1, 0], [0, 0], [1, 0], [0, 1]], center: [0, 0] },      // T
+      { blocks: [[-1, 1], [0, 1], [0, 0], [1, 0]], center: [0, 0] }       // Z
     ];
 
     const gameState = {
@@ -122,6 +101,21 @@
       }
     }
 
+    function drawFixedBlocks() {
+      const ctx = gameState.ctx;
+      const grid = gameState.grid;
+
+      for (let y = 0; y < ROWS; y++) {
+        for (let x = 0; x < COLS; x++) {
+          const cell = grid[y][x];
+          if (cell !== 0) {
+            ctx.fillStyle = COLORS[cell - 1];
+            ctx.fillRect(x, y, 1, 1);
+          }
+        }
+      }
+    }
+
     function drawBlock(block) {
       const ctx = gameState.ctx;
       ctx.fillStyle = block.color;
@@ -133,6 +127,7 @@
     function render() {
       clearCanvas();
       drawGrid();
+      drawFixedBlocks();        // 고정된 블럭 먼저 그림
       if (gameState.currentBlock) drawBlock(gameState.currentBlock);
     }
 
@@ -158,13 +153,11 @@
         const x = offsetX + dx;
         const y = offsetY + dy;
 
-        // strict=true일 경우, y < 0도 충돌로 간주
         if (x < 0 || x >= COLS || y >= ROWS || (strict && y < 0)) return true;
         if (y >= 0 && grid[y][x] !== 0) return true;
         return false;
       });
     }
-
 
     function moveBlock(dx, dy) {
       const block = gameState.currentBlock;
@@ -175,6 +168,10 @@
         block.x = newX;
         block.y = newY;
         render();
+      } else if (dy === 1) {
+        fixBlockToGrid();
+        gameState.currentBlock = createBlock();
+        render();
       }
     }
 
@@ -182,7 +179,7 @@
       const block = gameState.currentBlock;
       const { blocks, center } = block;
 
-      if (!center) return; // 회전 불가능 (ex. O 블럭)
+      if (!center) return;
 
       const rotated = blocks.map(([x, y]) => {
         const relX = x - center[0];
@@ -192,29 +189,34 @@
         return [newX + center[0], newY + center[1]];
       });
 
-      // 회전 시엔 strict=true
       if (!isCollision(gameState.grid, block, block.x, block.y, rotated, true)) {
         block.blocks = rotated;
         render();
       }
     }
 
-
     function hardDrop() {
       const block = gameState.currentBlock;
       let dropY = block.y;
-      while (!isCollision(gameState.grid, block, block.x, dropY + 1)) dropY++;
+
+      while (!isCollision(gameState.grid, block, block.x, dropY + 1)) {
+        dropY++;
+      }
+
       block.y = dropY;
-      render();
       fixBlockToGrid();
+      gameState.currentBlock = createBlock();
+      render();
     }
 
     function fixBlockToGrid() {
       const { grid, currentBlock: block } = gameState;
+      const colorIndex = COLORS.indexOf(block.color) + 1;
+
       block.blocks.forEach(([dx, dy]) => {
         const x = block.x + dx;
         const y = block.y + dy;
-        if (y >= 0) grid[y][x] = 1; // 숫자는 고정된 블럭으로 표시용
+        if (y >= 0) grid[y][x] = colorIndex;
       });
     }
 
