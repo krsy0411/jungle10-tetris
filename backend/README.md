@@ -143,6 +143,33 @@ python run.py
 gunicorn --worker-class eventlet -w 1 --bind 0.0.0.0:8000 run:app
 ```
 
+### ⚠️ 문제 해결
+
+#### 템플릿 경로 오류 (`TemplateNotFound: login.html`)
+
+Flask가 템플릿 파일을 찾지 못하는 경우, `app/__init__.py`에서 템플릿 폴더 경로가 올바르게 설정되어 있는지 확인하세요:
+
+```python
+# app/__init__.py의 create_app() 함수에서
+import os
+template_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'templates'))
+app = Flask(__name__, template_folder=template_dir)
+```
+
+#### MongoDB 연결 오류
+
+MongoDB가 실행 중이지 않은 경우:
+
+```bash
+# MongoDB 실행 확인
+sudo systemctl status mongod  # Linux
+brew services list | grep mongodb  # macOS
+
+# MongoDB 시작
+sudo systemctl start mongod  # Linux
+brew services start mongodb-community  # macOS
+```
+
 ## 🔗 API 엔드포인트
 
 ### 기본 정보

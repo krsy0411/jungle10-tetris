@@ -6,7 +6,7 @@
 
 ### 연결 정보
 
-- **개발 서버**: `ws://localhost:5000`
+- **개발 서버**: `ws://localhost:8000`
 - **프로덕션 서버**: `wss://api.jungletetris.com`
 - **네임스페이스**: `/` (기본)
 
@@ -15,7 +15,7 @@
 Socket.IO 연결 시 JWT 액세스 토큰을 통한 인증이 필요합니다.
 
 ```javascript
-const socket = io("ws://localhost:5000", {
+const socket = io("ws://localhost:8000", {
 	auth: {
 		token: "your_jwt_access_token_here",
 	},
@@ -315,7 +315,7 @@ interface ClientToServerEvents {
 ```javascript
 import { io } from "socket.io-client";
 
-const socket = io("ws://localhost:5000", {
+const socket = io("ws://localhost:8000", {
 	auth: {
 		token: localStorage.getItem("access_token"),
 	},

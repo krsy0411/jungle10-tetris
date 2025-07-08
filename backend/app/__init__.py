@@ -16,7 +16,10 @@ socketio = SocketIO()
 
 def create_app():
     """Flask 앱 팩토리"""
-    app = Flask(__name__)
+    # 템플릿 폴더 경로를 명시적으로 지정
+    import os
+    template_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'templates'))
+    app = Flask(__name__, template_folder=template_dir)
     
     # 앱 설정
     app.config.from_object('app.config.Config')
@@ -60,11 +63,16 @@ def create_app():
     from app.routes.rooms import rooms_bp
     from app.routes.game import game_bp
     from app.routes.ranking import ranking_bp
+    from app.routes.main import main_bp
+    from app.routes.docs import docs_bp, swaggerui_blueprint
     
     app.register_blueprint(auth_bp)
     app.register_blueprint(rooms_bp)
     app.register_blueprint(game_bp)
     app.register_blueprint(ranking_bp)
+    app.register_blueprint(main_bp)
+    app.register_blueprint(docs_bp)
+    app.register_blueprint(swaggerui_blueprint)
     
     # Socket.IO 이벤트 등록
     from app.socket_events.handlers import register_all_events

@@ -12,7 +12,7 @@ info:
     - 연결 상태 관리
 
     ### Socket.IO 엔드포인트
-    - **개발 서버**: `ws://localhost:5000`
+    - **개발 서버**: `ws://localhost:8000`
     - **프로덕션 서버**: `wss://api.jungletetris.com`
 
     ### 주요 Socket.IO 이벤트
@@ -31,7 +31,7 @@ info:
     name: MIT
     url: https://opensource.org/licenses/MIT
 servers:
-  - url: http://localhost:5000
+  - url: http://localhost:8000
     description: 개발 서버
   - url: https://api.jungletetris.com
     description: 프로덕션 서버

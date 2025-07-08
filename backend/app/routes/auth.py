@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify, current_app
+from flask import Blueprint, request, jsonify, current_app, render_template, redirect, url_for, flash
 from flask_jwt_extended import create_access_token, create_refresh_token, jwt_required, get_jwt_identity, get_jwt
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import timedelta
@@ -46,120 +46,178 @@ def validate_password(password):
     return True, ""
 
 
-@auth_bp.route('/register', methods=['POST'])
+def create_user_tokens(user_id, refresh_token_version):
+    """JWT 토큰 생성 (공통 함수)"""
+    access_token = create_access_token(
+        identity=user_id,
+        expires_delta=timedelta(minutes=15),
+        additional_claims={'refresh_token_version': refresh_token_version}
+    )
+    refresh_token = create_refresh_token(
+        identity=user_id,
+        expires_delta=timedelta(hours=3),
+        additional_claims={'refresh_token_version': refresh_token_version}
+    )
+    return access_token, refresh_token
+
+
+@auth_bp.route('/register', methods=['GET', 'POST'])
 def register():
-    """회원가입"""
+    """회원가입 (API + SSR)"""
+    # GET 요청: 회원가입 페이지 렌더링 (SSR)
+    if request.method == 'GET':
+        return render_template('register.html')
+    
+    # POST 요청: 회원가입 처리
     try:
-        data = request.get_json()
+        # 데이터 파싱 (JSON API 또는 Form SSR)
+        if request.is_json:
+            data = request.get_json()
+            user_id = data.get('user_id', '').strip()
+            name = data.get('name', '').strip()
+            password = data.get('password', '')
+            password_confirm = data.get('password_confirm', '')
+        else:
+            user_id = request.form.get('user_id', '').strip()
+            name = request.form.get('name', '').strip()
+            password = request.form.get('password', '')
+            password_confirm = request.form.get('password_confirm', '')
         
-        # 필수 필드 확인
-        required_fields = ['user_id', 'name', 'password', 'password_confirm']
-        for field in required_fields:
-            if field not in data or not data[field]:
-                return jsonify({'error': f'{field}는 필수 입력 항목입니다'}), 400
+        # 유효성 검증
+        is_valid_id, id_error = validate_user_id(user_id)
+        if not is_valid_id:
+            if request.is_json:
+                return jsonify({'error': id_error}), 400
+            flash(id_error, 'error')
+            return redirect(url_for('auth.register'))
         
-        user_id = data['user_id'].strip()
-        name = data['name'].strip()
-        password = data['password']
-        password_confirm = data['password_confirm']
+        is_valid_name, name_error = validate_name(name)
+        if not is_valid_name:
+            if request.is_json:
+                return jsonify({'error': name_error}), 400
+            flash(name_error, 'error')
+            return redirect(url_for('auth.register'))
         
-        # 입력값 유효성 검증
-        valid, error_msg = validate_user_id(user_id)
-        if not valid:
-            return jsonify({'error': error_msg}), 400
-        
-        valid, error_msg = validate_name(name)
-        if not valid:
-            return jsonify({'error': error_msg}), 400
-        
-        valid, error_msg = validate_password(password)
-        if not valid:
-            return jsonify({'error': error_msg}), 400
+        is_valid_password, password_error = validate_password(password)
+        if not is_valid_password:
+            if request.is_json:
+                return jsonify({'error': password_error}), 400
+            flash(password_error, 'error')
+            return redirect(url_for('auth.register'))
         
         # 비밀번호 확인
         if password != password_confirm:
-            return jsonify({'error': '비밀번호가 일치하지 않습니다'}), 400
+            error_msg = '비밀번호가 일치하지 않습니다'
+            if request.is_json:
+                return jsonify({'error': error_msg}), 400
+            flash(error_msg, 'error')
+            return redirect(url_for('auth.register'))
         
-        # 사용자 존재 여부 확인
+        # 중복 사용자 확인
         if User.exists(user_id):
-            return jsonify({'error': '이미 존재하는 아이디입니다'}), 409
+            error_msg = '이미 존재하는 아이디입니다'
+            if request.is_json:
+                return jsonify({'error': error_msg}), 409
+            flash(error_msg, 'error')
+            return redirect(url_for('auth.register'))
         
         # 새 사용자 생성
         user = User(user_id=user_id, name=name, password=password)
         user.save()
         
         # JWT 토큰 생성
-        access_token = create_access_token(
-            identity=user_id,
-            expires_delta=timedelta(minutes=15),
-            additional_claims={'refresh_token_version': user.refresh_token_version}
-        )
-        refresh_token = create_refresh_token(
-            identity=user_id,
-            expires_delta=timedelta(hours=3),
-            additional_claims={'refresh_token_version': user.refresh_token_version}
-        )
+        access_token, refresh_token = create_user_tokens(user_id, user.refresh_token_version)
         
-        return jsonify({
-            'message': '회원가입이 완료되었습니다',
-            'user_id': user_id,
-            'access_token': access_token,
-            'refresh_token': refresh_token
-        }), 201
+        # 응답 반환
+        if request.is_json:
+            return jsonify({
+                'message': '회원가입이 완료되었습니다',
+                'data': {
+                    'user': {'user_id': user_id, 'name': name},
+                    'access_token': access_token,
+                    'refresh_token': refresh_token
+                }
+            }), 201
+        else:
+            flash('회원가입이 완료되었습니다!', 'success')
+            return redirect(url_for('auth.login'))
         
     except Exception as e:
         current_app.logger.error(f"Registration error: {str(e)}")
-        return jsonify({'error': '회원가입 처리 중 오류가 발생했습니다'}), 500
+        error_msg = '회원가입 처리 중 오류가 발생했습니다'
+        if request.is_json:
+            return jsonify({'error': error_msg}), 500
+        flash(error_msg, 'error')
+        return redirect(url_for('auth.register'))
 
 
-@auth_bp.route('/login', methods=['POST'])
+@auth_bp.route('/login', methods=['GET', 'POST'])
 def login():
-    """로그인"""
+    """로그인 (API + SSR)"""
+    # GET 요청: 로그인 페이지 렌더링 (SSR)
+    if request.method == 'GET':
+        return render_template('login.html')
+    
+    # POST 요청: 로그인 처리
     try:
-        data = request.get_json()
+        # 데이터 파싱 (JSON API 또는 Form SSR)
+        if request.is_json:
+            data = request.get_json()
+            user_id = data.get('user_id', '').strip()
+            password = data.get('password', '')
+        else:
+            user_id = request.form.get('user_id', '').strip()
+            password = request.form.get('password', '')
         
         # 필수 필드 확인
-        if not data or 'user_id' not in data or 'password' not in data:
-            return jsonify({'error': '아이디와 비밀번호를 입력해주세요'}), 400
-        
-        user_id = data['user_id'].strip()
-        password = data['password']
-        
         if not user_id or not password:
-            return jsonify({'error': '아이디와 비밀번호를 입력해주세요'}), 400
+            error_msg = '아이디와 비밀번호를 입력해주세요'
+            if request.is_json:
+                return jsonify({'error': error_msg}), 400
+            flash(error_msg, 'error')
+            return redirect(url_for('auth.login'))
         
         # 사용자 조회
         user = User.find_by_user_id(user_id)
         if not user:
-            return jsonify({'error': '아이디 또는 비밀번호가 잘못되었습니다'}), 401
+            error_msg = '아이디 또는 비밀번호가 올바르지 않습니다'
+            if request.is_json:
+                return jsonify({'error': error_msg}), 401
+            flash(error_msg, 'error')
+            return redirect(url_for('auth.login'))
         
         # 비밀번호 확인
         if not user.check_password(password):
-            return jsonify({'error': '아이디 또는 비밀번호가 잘못되었습니다'}), 401
+            error_msg = '아이디 또는 비밀번호가 올바르지 않습니다'
+            if request.is_json:
+                return jsonify({'error': error_msg}), 401
+            flash(error_msg, 'error')
+            return redirect(url_for('auth.login'))
         
         # JWT 토큰 생성
-        access_token = create_access_token(
-            identity=user_id,
-            expires_delta=timedelta(minutes=15),
-            additional_claims={'refresh_token_version': user.refresh_token_version}
-        )
-        refresh_token = create_refresh_token(
-            identity=user_id,
-            expires_delta=timedelta(hours=3),
-            additional_claims={'refresh_token_version': user.refresh_token_version}
-        )
+        access_token, refresh_token = create_user_tokens(user_id, user.refresh_token_version)
         
-        return jsonify({
-            'message': '로그인되었습니다',
-            'user_id': user_id,
-            'name': user.name,
-            'access_token': access_token,
-            'refresh_token': refresh_token
-        }), 200
+        # 응답 반환
+        if request.is_json:
+            return jsonify({
+                'message': '로그인되었습니다',
+                'data': {
+                    'user': {'user_id': user_id, 'name': user.name},
+                    'access_token': access_token,
+                    'refresh_token': refresh_token
+                }
+            }), 200
+        else:
+            flash('로그인 성공!', 'success')
+            return redirect(url_for('main.main'))
         
     except Exception as e:
         current_app.logger.error(f"Login error: {str(e)}")
-        return jsonify({'error': '로그인 처리 중 오류가 발생했습니다'}), 500
+        error_msg = '로그인 처리 중 오류가 발생했습니다'
+        if request.is_json:
+            return jsonify({'error': error_msg}), 500
+        flash(error_msg, 'error')
+        return redirect(url_for('auth.login'))
 
 
 @auth_bp.route('/logout', methods=['POST'])
@@ -213,22 +271,3 @@ def refresh():
     except Exception as e:
         current_app.logger.error(f"Token refresh error: {str(e)}")
         return jsonify({'error': '토큰 갱신 처리 중 오류가 발생했습니다'}), 500
-
-
-@auth_bp.route('/me', methods=['GET'])
-@jwt_required()
-def get_current_user():
-    """현재 사용자 정보 조회"""
-    try:
-        user_id = get_jwt_identity()
-        
-        # 사용자 조회
-        user = User.find_by_user_id(user_id)
-        if not user:
-            return jsonify({'error': '사용자를 찾을 수 없습니다'}), 404
-        
-        return jsonify(user.to_dict()), 200
-        
-    except Exception as e:
-        current_app.logger.error(f"Get current user error: {str(e)}")
-        return jsonify({'error': '사용자 정보 조회 중 오류가 발생했습니다'}), 500
