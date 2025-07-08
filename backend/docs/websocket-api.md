@@ -332,7 +332,13 @@ socket.on("disconnect", () => {
 
 socket.on("error", (error) => {
 	console.error("소켓 오류:", error);
-	// 토큰 만료 등의 경우 재로그인 처리
+	// 토큰 만료 등의 경우 localStorage에서 토큰 삭제 후 재로그인 처리
+	if (error.type === "AUTH_ERROR") {
+		localStorage.removeItem("access_token");
+		localStorage.removeItem("refresh_token");
+		// 로그인 페이지로 리다이렉트
+		window.location.href = "/login";
+	}
 });
 ```
 
@@ -400,6 +406,8 @@ socket.on("error", (error) => {
 	switch (error.type) {
 		case "AUTH_ERROR":
 			// JWT 토큰 만료 또는 유효하지 않음
+			localStorage.removeItem("access_token");
+			localStorage.removeItem("refresh_token");
 			redirectToLogin();
 			break;
 		case "ROOM_NOT_FOUND":
