@@ -13,9 +13,8 @@
       <div id="score">최고 점수 : 0</div>
       <div id="score">점수 : 0</div>
       <div id="time">남은 시간 : 30초</div>
-      <button id="play-btn" class="bg-green-500 text-white px-4 py-2 rounded-md">Play</button>
-    </main>
-  </div>
+    </div>
+  </main>
 
   <script>
     const COLS = 10;
@@ -319,7 +318,7 @@
     initializeCanvas();
     drawGrid();
     document.addEventListener('keydown', onKeyDown);
-    document.getElementById('play-btn').addEventListener('click', startGame);
+    startGame()
   </script>
 </body>
 </html>
