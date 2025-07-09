@@ -25,9 +25,9 @@
 			<canvas id="game-board" class="bg-black "></canvas>
 			<div class="flex flex-col justify-start text-green-500 text-5xl gap-10 mt-20">
 				<p>{{ user_name }}</p>
-				<p id="high-score">최고 점수 : 0</p>
+				<p id="high-score">최고 점수 : {{ user_high_score }}</p>
 				<p id="score">점수 : 0</p>
-				<p id="time">남은 시간 : 60초</p>
+				<p id="time">남은 시간 : 60sec</p>
 			</div>
 		</main>
 		<script>
