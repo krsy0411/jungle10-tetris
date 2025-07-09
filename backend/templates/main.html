@@ -30,15 +30,16 @@
 			</h1>
 
 			<section class="flex items-center gap-5 pt-10">
-				<button
+				<a
+					href="{{ url_for('main.solo') }}"
 					id="singleGameBtn"
-					class="w-48 h-48 shrink-0 bg-green-400 hover:bg-green-600 transition-colors duration-200 rounded-2xl text-white font-bold text-3xl"
+					class="w-48 h-48 shrink-0 bg-green-400 hover:bg-green-600 transition-colors duration-200 rounded-2xl text-white font-bold text-3xl flex items-center justify-center"
 					style="font-family: Inter"
 				>
 					혼자하기
-				</button>
+				</a>
 				<a
-					href="{{ url_for('main.rooms') }}"
+					href="{{ url_for('main.multi') }}"
 					id="createRoomBtn"
 					class="w-48 h-48 shrink-0 bg-green-400 hover:bg-green-600 transition-colors duration-200 rounded-2xl text-white font-bold text-3xl flex items-center justify-center"
 					style="font-family: Inter"

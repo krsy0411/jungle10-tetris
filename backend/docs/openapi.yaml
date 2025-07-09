@@ -51,186 +51,8 @@ security:
   - BearerAuth: []
 
 paths:
-  # 인증 API
-  /api/auth/register:
-    post:
-      tags:
-        - Authentication
-      summary: 회원가입
-      description: 새로운 사용자 계정을 생성합니다
-      security: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required:
-                - user_id
-                - name
-                - password
-                - password_confirm
-              properties:
-                user_id:
-                  type: string
-                  minLength: 5
-                  maxLength: 20
-                  pattern: "^[a-zA-Z0-9]+$"
-                  description: 로그인 ID (5-20자, 영문 및 숫자 조합)
-                  example: "user123"
-                name:
-                  type: string
-                  minLength: 2
-                  maxLength: 10
-                  description: 사용자 이름 (2-10자, 한글/영문 허용)
-                  example: "홍길동"
-                password:
-                  type: string
-                  minLength: 8
-                  maxLength: 20
-                  description: 비밀번호 (8-20자, 영문/숫자/특수문자 포함)
-                  example: "Password123!"
-                password_confirm:
-                  type: string
-                  description: 비밀번호 확인
-                  example: "Password123!"
-      responses:
-        "201":
-          description: 회원가입 성공
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  message:
-                    type: string
-                    example: "회원가입이 완료되었습니다"
-                  user_id:
-                    type: string
-                    example: "user123"
-                  access_token:
-                    type: string
-                    example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-                  refresh_token:
-                    type: string
-                    example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "409":
-          $ref: "#/components/responses/Conflict"
-
-  /api/auth/login:
-    post:
-      tags:
-        - Authentication
-      summary: 로그인
-      description: 기존 사용자 계정으로 로그인합니다
-      security: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required:
-                - user_id
-                - password
-              properties:
-                user_id:
-                  type: string
-                  description: 로그인 ID
-                  example: "user123"
-                password:
-                  type: string
-                  description: 비밀번호
-                  example: "Password123!"
-      responses:
-        "200":
-          description: 로그인 성공
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  message:
-                    type: string
-                    example: "로그인되었습니다"
-                  user_id:
-                    type: string
-                    example: "user123"
-                  name:
-                    type: string
-                    example: "홍길동"
-                  access_token:
-                    type: string
-                    example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-                  refresh_token:
-                    type: string
-                    example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-
-  /api/auth/logout:
-    post:
-      tags:
-        - Authentication
-      summary: 로그아웃
-      description: 사용자 세션을 종료하고 리프레시 토큰을 무효화합니다
-      responses:
-        "200":
-          description: 로그아웃 성공
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  message:
-                    type: string
-                    example: "로그아웃되었습니다"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-
-  /api/auth/refresh:
-    post:
-      tags:
-        - Authentication
-      summary: 토큰 갱신
-      description: 리프레시 토큰을 이용해 새로운 액세스 토큰을 발급받습니다
-      security: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required:
-                - refresh_token
-              properties:
-                refresh_token:
-                  type: string
-                  description: 리프레시 토큰
-                  example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-      responses:
-        "200":
-          description: 토큰 갱신 성공
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  access_token:
-                    type: string
-                    example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-                  message:
-                    type: string
-                    example: "토큰이 갱신되었습니다"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-
-  # 방 관리 API
-  /api/rooms:
+  # 방 생성 API
+  /api/rooms/create:
     post:
       tags:
         - Rooms
@@ -409,10 +231,10 @@ paths:
                   message:
                     type: string
                     example: "게임 결과가 저장되었습니다"
-                  final_score:
+                  score:
                     type: integer
                     example: 2500
-                  personal_best:
+                  is_best:
                     type: boolean
                     description: 개인 최고 기록 여부
                     example: true
@@ -420,6 +242,138 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
+
+  /api/game/multi/start:
+    post:
+      tags:
+        - Game
+      summary: 멀티 게임 시작
+      description: 방장이 멀티플레이 게임을 시작합니다. (JWT 인증 필요)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - room_id
+              properties:
+                room_id:
+                  type: integer
+                  description: 시작할 방 번호
+                  example: 123
+      responses:
+        "200":
+          description: 멀티 게임 시작 성공
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  room_id:
+                    type: integer
+                    example: 123
+                  game_time:
+                    type: integer
+                    description: 게임 시간 (초)
+                    example: 60
+                  players:
+                    type: array
+                    description: 참가자 목록
+                    items:
+                      type: object
+                      properties:
+                        name:
+                          type: string
+                          example: "홍길동"
+                        user_id:
+                          type: string
+                          example: "user123"
+                        score:
+                          type: integer
+                          example: 0
+                  message:
+                    type: string
+                    example: "멀티 게임이 시작되었습니다"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/game/multi/end:
+    post:
+      tags:
+        - Game
+      summary: 멀티 게임 종료
+      description: 멀티플레이 게임 종료 및 결과 제출 (JWT 인증 필요)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - room_id
+                - score
+              properties:
+                room_id:
+                  type: integer
+                  description: 종료할 방 번호
+                  example: 123
+                score:
+                  type: integer
+                  minimum: 0
+                  description: 획득 점수
+                  example: 2500
+      responses:
+        "200":
+          description: 멀티 게임 종료 성공
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  room_id:
+                    type: integer
+                    example: 123
+                  your_score:
+                    type: integer
+                    example: 2500
+                  all_finished:
+                    type: boolean
+                    description: 모든 참가자 점수 제출 여부
+                    example: true
+                  message:
+                    type: string
+                    example: "게임이 종료되었습니다"
+                  final_scores:
+                    type: object
+                    description: 참가자별 최종 점수 (모든 참가자 제출 시)
+                    additionalProperties:
+                      type: integer
+                    example:
+                      user123: 2500
+                      user456: 1800
+                  winner:
+                    type: string
+                    description: 승자 이름 (모든 참가자 제출 시)
+                    example: "홍길동"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
 
   # 랭킹 API
   /api/ranking/score:
@@ -639,13 +593,10 @@ components:
               message:
                 type: string
                 example: "서버에서 오류가 발생했습니다. 잠시 후 다시 시도해주세요"
-
-tags:
-  - name: Authentication
-    description: 사용자 인증 관련 API
-  - name: Rooms
-    description: 방 관리 관련 API
-  - name: Game
-    description: 게임 플레이 관련 API
-  - name: Ranking
-    description: 랭킹 조회 관련 API
+  tags:
+    - name: Rooms
+      description: 방 관리 관련 API
+    - name: Game
+      description: 게임 플레이 관련 API
+    - name: Ranking
+      description: 랭킹 조회 관련 API
