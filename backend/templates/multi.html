@@ -60,7 +60,7 @@
 					<div>이름</div>
 					<div id="high-score">최고 점수 : 0</div>
 					<div id="score">점수 : 0</div>
-					<div id="time">남은 시간 : 30초</div>
+					<div id="time">남은 시간 : 00초</div>
 				</div>
 				<div class="flex flex-col justify-start text-blue-500 text-3xl gap-10 mt-[50px]">
 					<div>상대 이름</div>
@@ -82,6 +82,7 @@
 			const COLS = 10;
 			const ROWS = 15;
 			const BLOCK_SIZE = window.innerHeight * 0.06;
+			const GAME_TIME = 60; // 게임 시간 (초)
 
 			const KEY = Object.freeze({
 				LEFT: 37,
@@ -121,7 +122,7 @@
 				start: 0,
 				elapsed: 0,
 				interval: 1000,
-				remaining: 30,
+				remaining: GAME_TIME,
 				lastTick: 0
 			};
 
@@ -173,7 +174,7 @@
 				score = 0;
 				updateScore();
 				time.start = performance.now();
-				time.remaining = 30;
+				time.remaining = GAME_TIME;
 				time.lastTick = 0;
 				updateTime();
 				animate();

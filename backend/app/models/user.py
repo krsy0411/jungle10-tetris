@@ -115,9 +115,15 @@ class User:
         """게임 통계 업데이트"""
         if game_result == 'win':
             self.wins += 1
+        # game_result가 'draw' 또는 'loss'인 경우 승리 수는 변경하지 않음
         
+        # 솔로 게임 최고 점수 업데이트
         if solo_score and solo_score > self.solo_high_score:
             self.solo_high_score = solo_score
+        
+        # 멀티플레이어 게임에서 얻은 점수도 최고 점수와 비교
+        if score_gained and score_gained > self.solo_high_score:
+            self.solo_high_score = score_gained
         
         self.save()
 

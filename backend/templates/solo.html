@@ -27,7 +27,7 @@
 				<p>{{ user_name }}</p>
 				<p id="high-score">최고 점수 : {{ user_high_score }}</p>
 				<p id="score">점수 : 0</p>
-				<p id="time">남은 시간 : 60sec</p>
+				<p id="time">남은 시간 : 00초</p>
 			</div>
 		</main>
 		<script>
@@ -35,6 +35,7 @@
 			const COLS = 10;
 			const ROWS = 15;
 			const BLOCK_SIZE = window.innerHeight * 0.06;
+			const GAME_TIME = 60; // 게임 시간 (초)
 
 			const KEY = Object.freeze({
 			LEFT: 37,
@@ -74,7 +75,7 @@
 			start: 0,
 			elapsed: 0,
 			interval: 1000,
-			remaining: 60,
+			remaining: GAME_TIME,
 			lastTick: 0
 			};
 
@@ -111,7 +112,7 @@
 						throw new Error(data.error || '게임 시작 실패');
 					}
 
-					const gameTime = data.game_time || 60;
+					const gameTime = data.game_time || GAME_TIME;
 					startGame(gameTime);
 				} catch (err) {
 					alert('게임 시작 중 오류 발생: ' + err.message);

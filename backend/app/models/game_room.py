@@ -6,11 +6,9 @@ import uuid
 class GameRoom:
     """게임 방 모델"""
     
-    def __init__(self, room_id=None, host_user_id=None, host_name=None, status='waiting', 
+    def __init__(self, room_id=None, status='waiting', 
                  participants=None, created_at=None, game_start_time=None, game_end_time=None):
         self.room_id = room_id or str(uuid.uuid4())[:8]
-        self.host_user_id = host_user_id
-        self.host_name = host_name
         self.status = status  # 'waiting', 'playing', 'finished'
         self.participants = participants or []
         self.created_at = created_at or datetime.utcnow()
@@ -21,8 +19,6 @@ class GameRoom:
         """사전 형태로 변환"""
         return {
             'room_id': self.room_id,
-            'host_user_id': self.host_user_id,
-            'host_name': self.host_name,
             'status': self.status,
             'participants': self.participants,
             'participant_count': len(self.participants),
@@ -37,8 +33,6 @@ class GameRoom:
         return {
             '_id': self.room_id,
             'room_id': self.room_id,
-            'host_user_id': self.host_user_id,
-            'host_name': self.host_name,
             'status': self.status,
             'participants': self.participants,
             'created_at': self.created_at,
@@ -54,8 +48,6 @@ class GameRoom:
         
         return GameRoom(
             room_id=doc.get('room_id'),
-            host_user_id=doc.get('host_user_id'),
-            host_name=doc.get('host_name'),
             status=doc.get('status', 'waiting'),
             participants=doc.get('participants', []),
             created_at=doc.get('created_at'),
@@ -106,6 +98,18 @@ class GameRoom:
         self.save()
         return True, "방에 참가했습니다"
 
+    def remove_participant(self, user_id):
+        """참가자 제거"""
+        self.participants = [p for p in self.participants if p['user_id'] != user_id]
+        
+        # 참가자가 모두 나간 경우 방 삭제
+        if len(self.participants) == 0:
+            self.delete()
+            return True
+        
+        self.save()
+        return True 
+
     def start_game(self):
         """게임 시작"""
         if len(self.participants) != 2:
@@ -140,10 +144,6 @@ class GameRoom:
                 self.save()
                 return True
         return False
-
-    def is_host(self, user_id):
-        """방장 여부 확인"""
-        return self.host_user_id == user_id
 
     def can_join(self):
         """참가 가능 여부 확인"""

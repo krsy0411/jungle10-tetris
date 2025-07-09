@@ -133,6 +133,7 @@ def register_room_events(socketio):
                     room.start_game()
                 players = [{'name': p['name'], 'user_id': p['user_id'], 'score': 0} for p in room.participants]
                 socketio.emit('game:start', {
+                    'room_id': room_id,
                     'players': players,
                     'game_time': 60  # 60초 게임
                 }, room=room_id)
@@ -156,14 +157,20 @@ def register_room_events(socketio):
                 emit('error', {'type': 'VALIDATION_ERROR', 'message': '방 번호가 필요합니다'})
                 return
             
-            # 방 나가기 알림을 방 내 다른 사용자에게 브로드캐스트
-            socketio.emit('room:leave', {
-                'user_name': user.name,
-                'message': f'{user.name}님이 방을 나갔습니다'
-            }, room=room_id)
-
+            # 방 조회
+            room = GameRoom.find_by_room_id(room_id)
+            
+            # DB에서 참가자 제거 (참가자가 없으면 방 삭제)
+            success = room.remove_participant(user.user_id)
+            
             # Socket.IO 방에서 나가기
             leave_room(room_id)
+            
+            # 성공 응답
+            emit('room:leave', {
+                'message': '방을 나갔습니다',
+                'user_id': user.user_id,
+            })
 
             # 클라이언트 연결도 끊기 (가능한 경우)
             try:
@@ -204,11 +211,12 @@ def register_game_events(socketio):
                 
                 # 업데이트된 플레이어 점수를 방 내 모든 사용자에게 브로드캐스트
                 players = [
-                    {'user_id': p['user_id'], 'score': p.get('score', 0)} 
+                    {'name': p['name'], 'score': p.get('score', 0)} 
                     for p in room.participants
                 ]
                 
                 socketio.emit('game:score_update', {
+                    'room_id': room_id,
                     'players': players
                 }, room=room_id)
             
@@ -227,32 +235,34 @@ def register_game_events(socketio):
                 return
             room_id = data.get('room_id')
             final_score = data.get('score', 0)
-            if not room_id:
-                emit('error', {'type': 'VALIDATION_ERROR', 'message': '방 번호가 필요합니다'})
-                return
-            if not isinstance(final_score, int) or final_score < 0:
-                emit('error', {'type': 'VALIDATION_ERROR', 'message': '유효하지 않은 점수입니다'})
-                return
+
             # 방 조회
             room = GameRoom.find_by_room_id(room_id)
             if not room:
                 emit('error', {'type': 'ROOM_NOT_FOUND', 'message': '존재하지 않는 방입니다'})
                 return
+            
             # 최종 점수 업데이트
             room.update_participant_score(user.user_id, final_score)
             # 모든 플레이어가 게임을 마쳤는지 확인
             all_finished = all(p.get('score', 0) > 0 for p in room.participants)
             result = {
-                'room_id': room_id,
-                'your_score': final_score,
-                'all_finished': all_finished
+                'room_id': room_id
             }
+            
             if all_finished:
-                # 승자 결정 (점수가 가장 높은 플레이어)
-                winner = max(room.participants, key=lambda p: p.get('score', 0))
                 scores = {p['user_id']: p.get('score', 0) for p in room.participants}
+                
+                # 승부 결정 (점수 비교)
+                max_score = max(scores.values())
+                winners = [user_id for user_id, score in scores.items() if score == max_score]
+                
+                is_draw = len(winners) > 1
+                winner_user_id = None if is_draw else winners[0]
+                
                 # 게임 종료
                 room.end_game(scores)
+                
                 # 게임 기록 저장
                 from app.models.game_record import GameRecord
                 players_data = [
@@ -260,24 +270,36 @@ def register_game_events(socketio):
                     for p in room.participants
                 ]
                 GameRecord.create_multiplayer_record(
-                    room_id, players_data, scores, winner['user_id'], 60
+                    room_id, players_data, scores, winner_user_id, 60
                 )
+                
                 # 사용자 통계 업데이트
                 for participant in room.participants:
                     participant_user = User.find_by_user_id(participant['user_id'])
                     if participant_user:
-                        is_winner = participant['user_id'] == winner['user_id']
-                        game_result = 'win' if is_winner else 'loss'
+                        if is_draw:
+                            game_result = 'draw'
+                        else:
+                            game_result = 'win' if participant['user_id'] == winner_user_id else 'loss'
                         participant_user.update_stats(
                             score_gained=participant.get('score', 0),
                             game_result=game_result
                         )
-                result.update({
-                    'message': '게임이 종료되었습니다',
-                    'status': 'finished',
-                    'final_scores': scores,
-                    'winner': winner['name']
-                })
+                
+                # 결과 메시지 설정
+                if is_draw:
+                    result.update({
+                        'status': 'finished',
+                        'final_scores': scores,
+                        'is_draw': True
+                    })
+                else:
+                    result.update({
+                        'status': 'finished',
+                        'final_scores': scores,
+                        'winner': winner_user_id,
+                        'is_draw': False
+                    })
                 # 게임 종료 결과를 방 내 모든 사용자에게 브로드캐스트
                 socketio.emit('game:end', result, room=room_id)
             else:

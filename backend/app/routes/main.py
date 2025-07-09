@@ -280,12 +280,9 @@ def api_create_room():
             return jsonify({'error': '사용자를 찾을 수 없습니다'}), 404
         
         # 새 방 생성
-        room = GameRoom(
-            host_user_id=user_id,
-            host_name=user.name
-        )
+        room = GameRoom()
         
-        # 방장을 첫 번째 참가자로 추가
+        # 방 생성자를 첫 번째 참가자로 추가
         room.add_participant(user_id, user.name)
         room.save()
         
@@ -343,33 +340,6 @@ def api_join_room():
     except Exception as e:
         current_app.logger.error(f"Join room error: {str(e)}")
         return jsonify({'error': '방 참가 중 오류가 발생했습니다'}), 500
-
-
-@main_bp.route('/api/rooms/<room_id>', methods=['DELETE'])
-@jwt_required()
-def api_delete_room(room_id):
-    """방 삭제 API (JWT 인증)"""
-    try:
-        user_id = get_jwt_identity()
-        
-        # 방 조회
-        room = GameRoom.find_by_room_id(room_id)
-        if not room:
-            return jsonify({'error': '존재하지 않는 방입니다'}), 404
-        
-        # 방장 권한 확인
-        if not room.is_host(user_id):
-            return jsonify({'error': '방장만 방을 삭제할 수 있습니다'}), 403
-        
-        # 방 삭제
-        room.delete()
-        
-        return jsonify({'message': '방이 삭제되었습니다'}), 200
-        
-    except Exception as e:
-        current_app.logger.error(f"Delete room error: {str(e)}")
-        return jsonify({'error': '방 삭제 중 오류가 발생했습니다'}), 500
-
 
 # 게임 API
 @main_bp.route('/api/game/solo/start', methods=['POST'])
