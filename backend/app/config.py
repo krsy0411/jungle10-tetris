@@ -28,11 +28,11 @@ class Config:
     # MongoDB 설정
     MONGODB_URI = os.getenv('MONGODB_URI', 'mongodb://localhost:27017/jungle_tetris')
     
-    # CORS 설정
-    CORS_ORIGINS = os.getenv('CORS_ORIGINS', 'http://localhost:3000').split(',')
-    
     # Socket.IO 설정
     SOCKETIO_ASYNC_MODE = 'eventlet'
+    
+    # Socket.IO 클라이언트 URL (프론트엔드에서 사용)
+    SOCKET_URL = os.getenv('SOCKET_URL', 'http://localhost:8000')
     
     # 서버 설정
     HOST = os.getenv('HOST', '0.0.0.0')

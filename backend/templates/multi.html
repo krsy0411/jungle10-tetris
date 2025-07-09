@@ -90,7 +90,7 @@
 		</div>
 
 		<script>
-			const socket = io('http://localhost:8000', {
+			const socket = io('{{ socket_url }}', {
 				withCredentials: true
 			});
 			const room_id = sessionStorage.getItem('room_id');
