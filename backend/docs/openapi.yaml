@@ -53,6 +53,8 @@ security:
 paths:
   # 방 생성 API
   /api/rooms/create:
+  # 방 생성 API
+  /api/rooms/create:
     post:
       tags:
         - Rooms
@@ -232,8 +234,10 @@ paths:
                     type: string
                     example: "게임 결과가 저장되었습니다"
                   score:
+                  score:
                     type: integer
                     example: 2500
+                  is_best:
                   is_best:
                     type: boolean
                     description: 개인 최고 기록 여부
@@ -243,8 +247,6 @@ paths:
         "401":
           $ref: "#/components/responses/Unauthorized"
 
-<<<<<<< HEAD
-=======
   /api/game/multi/start:
     post:
       tags:
@@ -377,7 +379,6 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
->>>>>>> front
   # 랭킹 API
   /api/ranking/score:
     get:

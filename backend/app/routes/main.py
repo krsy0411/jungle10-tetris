@@ -1,5 +1,5 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify, current_app, make_response
-from flask_jwt_extended import jwt_required, get_jwt_identity, create_access_token, create_refresh_token, set_access_cookies, set_refresh_cookies, unset_jwt_cookies
+from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify, current_app, make_response, make_response
+from flask_jwt_extended import jwt_required, get_jwt_identity, create_access_token, create_refresh_token, set_access_cookies, set_refresh_cookies, unset_jwt_cookies, set_access_cookies, set_refresh_cookies, unset_jwt_cookies
 from app.models.user import User
 from app.models.game_room import GameRoom
 from app.models.game_record import GameRecord

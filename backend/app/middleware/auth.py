@@ -1,11 +1,6 @@
 from functools import wraps
-<<<<<<< HEAD
-from flask import request, jsonify, current_app
-from flask_jwt_extended import verify_jwt_in_request, get_jwt_identity, get_jwt
-=======
 from flask import request, jsonify, current_app, make_response, redirect, url_for
 from flask_jwt_extended import verify_jwt_in_request, get_jwt_identity, get_jwt, create_access_token, set_access_cookies, jwt_required
->>>>>>> front
 import time
 from collections import defaultdict
 
@@ -183,8 +178,6 @@ class SecurityMiddleware:
                 return func(*args, **kwargs)
             return wrapper
         return decorator
-<<<<<<< HEAD
-=======
 
 
 def auto_refresh_jwt():
@@ -233,4 +226,3 @@ def auto_refresh_jwt():
         
         return wrapper
     return decorator
->>>>>>> front
