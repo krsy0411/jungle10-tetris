@@ -30,9 +30,14 @@ def authenticate_socket_jwt(token):
         return None, "인증 실패"
 
 
-def get_current_user_from_jwt(token):
-    """JWT 토큰에서 현재 사용자 정보 조회"""
+def get_current_user_from_socket():
+    """Socket.IO 요청에서 쿠키의 JWT 토큰으로 사용자 정보 조회"""
     try:
+        # 쿠키에서 JWT 토큰 추출
+        token = None
+        if hasattr(request, 'cookies'):
+            token = request.cookies.get('access_token_cookie')
+        
         if not token:
             return None, "인증 토큰이 필요합니다"
         
@@ -46,7 +51,7 @@ def get_current_user_from_jwt(token):
         return user, None
         
     except Exception as e:
-        current_app.logger.error(f"Get user from JWT error: {str(e)}")
+        current_app.logger.error(f"Get user from socket error: {str(e)}")
         return None, "인증 실패"
 
 
@@ -55,11 +60,17 @@ def register_connection_events(socketio):
     
     @socketio.on('connect')
     def handle_connect(auth):
-        """클라이언트 연결 시 (JWT 기반 인증)"""
+        """클라이언트 연결 시 (쿠키 기반 JWT 인증)"""
         try:
-            # JWT 토큰에서 인증 정보 추출
+            # 쿠키에서 JWT 토큰 추출
             token = None
-            if auth and isinstance(auth, dict) and 'token' in auth:
+            
+            # request.cookies에서 access_token_cookie 추출
+            if hasattr(request, 'cookies'):
+                token = request.cookies.get('access_token_cookie')
+            
+            # 쿠키에서 토큰을 찾지 못한 경우 auth 파라미터 확인 (fallback)
+            if not token and auth and isinstance(auth, dict) and 'token' in auth:
                 token = auth['token']
             
             # JWT 기반 인증 확인
@@ -96,55 +107,46 @@ def register_room_events(socketio):
     
     @socketio.on('room:join')
     def handle_room_join(data):
-        """방 참가 (JWT 인증)"""
+        """방 참가 (쿠키 기반 JWT 인증)"""
         try:
-            # JWT 토큰 인증
-            token = data.get('token')
-            user, error = get_current_user_from_jwt(token)
-            
+            # 쿠키에서 JWT 토큰으로 사용자 인증
+            user, error = get_current_user_from_socket()
             if error:
                 emit('error', {'type': 'AUTH_ERROR', 'message': error})
                 return
-            
             room_id = data.get('room_id')
             if not room_id:
                 emit('error', {'type': 'VALIDATION_ERROR', 'message': '방 번호가 필요합니다'})
                 return
-            
             # 방 조회
             room = GameRoom.find_by_room_id(room_id)
             if not room:
                 emit('error', {'type': 'ROOM_NOT_FOUND', 'message': '존재하지 않는 방입니다'})
                 return
-            
             # Socket.IO 방에 참가
             join_room(room_id)
-            
-            # 방 참가 알림을 방 내 모든 사용자에게 브로드캐스트
-            socketio.emit('room:join', {
-                'room_id': room_id,
-                'user_name': user.name,
-                'message': f'{user.name}님이 방에 참가했습니다'
-            }, room=room_id)
-            
-            # 방 정보 업데이트 알림
-            socketio.emit('room:update', {
-                'room_id': room_id,
-                'status': room.status,
-                'players': [p['name'] for p in room.participants]
-            }, room=room_id)
-            
+
+            # 참가자 수가 2명이 되면 서버가 자동으로 게임 시작 알림을 브로드캐스트
+            if len(room.participants) == 2:
+                # 게임 시작 처리 (room.start_game() 등 필요시 호출)
+                if hasattr(room, 'start_game'):
+                    room.start_game()
+                players = [{'name': p['name'], 'score': 0} for p in room.participants]
+                socketio.emit('game:start', {
+                    'room_id': room_id,
+                    'players': players,
+                    'game_time': 60  # 60초 게임
+                }, room=room_id)
         except Exception as e:
             current_app.logger.error(f"Room join error: {str(e)}")
             emit('error', {'type': 'SERVER_ERROR', 'message': '방 참가 중 오류가 발생했습니다'})
     
     @socketio.on('room:leave')
     def handle_room_leave(data):
-        """방 나가기 (JWT 인증)"""
+        """방 나가기 (쿠키 기반 JWT 인증)"""
         try:
-            # JWT 토큰 인증
-            token = data.get('token')
-            user, error = get_current_user_from_jwt(token)
+            # 쿠키에서 JWT 토큰으로 사용자 인증
+            user, error = get_current_user_from_socket()
             
             if error:
                 emit('error', {'type': 'AUTH_ERROR', 'message': error})
@@ -173,60 +175,19 @@ def register_room_events(socketio):
 def register_game_events(socketio):
     """게임 관련 이벤트 등록"""
     
-    @socketio.on('game:start')
-    def handle_game_start(data):
-        """게임 시작 (방장이 실행, JWT 인증)"""
-        try:
-            # JWT 토큰 인증
-            token = data.get('token')
-            user, error = get_current_user_from_jwt(token)
-            
-            if error:
-                emit('error', {'type': 'AUTH_ERROR', 'message': error})
-                return
-            
-            room_id = data.get('room_id')
-            if not room_id:
-                emit('error', {'type': 'VALIDATION_ERROR', 'message': '방 번호가 필요합니다'})
-                return
-            
-            # 방 조회
-            room = GameRoom.find_by_room_id(room_id)
-            if not room:
-                emit('error', {'type': 'ROOM_NOT_FOUND', 'message': '존재하지 않는 방입니다'})
-                return
-            
-            # 방장 권한 확인
-            if not room.is_host(user.user_id):
-                emit('error', {'type': 'PERMISSION_DENIED', 'message': '방장만 게임을 시작할 수 있습니다'})
-                return
-            
-            # 게임 시작
-            success, message = room.start_game()
-            if not success:
-                emit('error', {'type': 'GAME_START_FAILED', 'message': message})
-                return
-            
-            # 게임 시작 알림을 방 내 모든 사용자에게 브로드캐스트
-            players = [{'name': p['name'], 'score': 0} for p in room.participants]
-            
-            socketio.emit('game:start', {
-                'room_id': room_id,
-                'players': players,
-                'game_time': 60  # 60초 게임
-            }, room=room_id)
-            
-        except Exception as e:
-            current_app.logger.error(f"Game start error: {str(e)}")
-            emit('error', {'type': 'SERVER_ERROR', 'message': '게임 시작 중 오류가 발생했습니다'})
+    # 게임 시작은 방장이 아닌, 두 명이 모두 입장하면 서버가 자동으로 알림을 보냄
+
+    # 기존 game:start 이벤트 핸들러는 제거
+
+    # 방 참가 이벤트에서 참가자 수가 2명이 되면 게임 시작 알림을 브로드캐스트
+    # (room:join 이벤트 내부에서 처리)
     
     @socketio.on('game:score_update')
     def handle_score_update(data):
-        """실시간 점수 업데이트 (JWT 인증)"""
+        """실시간 점수 업데이트 (쿠키 기반 JWT 인증)"""
         try:
-            # JWT 토큰 인증
-            token = data.get('token')
-            user, error = get_current_user_from_jwt(token)
+            # 쿠키에서 JWT 토큰으로 사용자 인증
+            user, error = get_current_user_from_socket()
             
             if error:
                 emit('error', {'type': 'AUTH_ERROR', 'message': error})
@@ -261,11 +222,10 @@ def register_game_events(socketio):
     
     @socketio.on('game:end')
     def handle_game_end(data):
-        """게임 종료 처리 (JWT 인증) - 플레이어가 게임 완료 시 호출"""
+        """게임 종료 처리 (쿠키 기반 JWT 인증) - 플레이어가 게임 완료 시 호출"""
         try:
-            # JWT 토큰 인증
-            token = data.get('token')
-            user, error = get_current_user_from_jwt(token)
+            # 쿠키에서 JWT 토큰으로 사용자 인증
+            user, error = get_current_user_from_socket()
             
             if error:
                 emit('error', {'type': 'AUTH_ERROR', 'message': error})
