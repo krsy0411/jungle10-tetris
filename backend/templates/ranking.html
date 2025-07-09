@@ -43,14 +43,13 @@
 						</li>
 						{% endfor %}
 					</ul>
-					{% if current_user_wins %}
 					<p class="font-bold text-xl text-center pt-5">
 						{{ current_user.name }}:
-						<span class="text-green-400"
-							>{{ "{:,}".format(current_user_wins) }}</span
+						<span class="text-green-400">
+							{{ "{:,}".format(current_user_wins if current_user_wins is not
+							none else 0) }}</span
 						>승
 					</p>
-					{% endif %}
 				</article>
 				<article class="flex flex-col items-center">
 					<h2 class="text-green-400 font-bold text-3xl pb-2">
@@ -67,14 +66,13 @@
 						</li>
 						{% endfor %}
 					</ul>
-					{% if current_user_score %}
 					<p class="font-bold text-xl text-center pt-5">
 						{{ current_user.name }}:
-						<span class="text-green-400"
-							>{{ "{:,}".format(current_user_score) }}</span
+						<span class="text-green-400">
+							{{ "{:,}".format(current_user_score if current_user_score is not
+							none else 0) }}</span
 						>점
 					</p>
-					{% endif %}
 				</article>
 			</section>
 		</main>

@@ -16,6 +16,15 @@ class Config:
     JWT_REFRESH_TOKEN_EXPIRES = timedelta(hours=3)    # 3시간
     JWT_ALGORITHM = 'HS256'
     
+    # JWT 쿠키 설정
+    JWT_TOKEN_LOCATION = ['cookies', 'headers']  # 쿠키와 헤더 둘 다 지원
+    JWT_COOKIE_SECURE = False  # 개발환경에서는 False, 프로덕션에서는 True
+    JWT_COOKIE_CSRF_PROTECT = False  # CSRF 보호 비활성화 (개발용)
+    JWT_ACCESS_COOKIE_NAME = 'access_token'
+    JWT_REFRESH_COOKIE_NAME = 'refresh_token'
+    JWT_ACCESS_COOKIE_PATH = '/'
+    JWT_REFRESH_COOKIE_PATH = '/'
+    
     # MongoDB 설정
     MONGODB_URI = os.getenv('MONGODB_URI', 'mongodb://localhost:27017/jungle_tetris')
     
