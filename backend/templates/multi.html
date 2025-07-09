@@ -64,7 +64,7 @@
 				</div>
 				<div class="flex flex-col justify-start text-blue-500 text-3xl gap-10 mt-[50px]">
 					<div id="opponent">상대 이름</div>
-					<div>점수 : 0</div>
+					<div id="opponentScore">점수 : 0</div>
 				</div>
 			</aside>
 		</main>
@@ -150,6 +150,7 @@
 			};
 
 			let score = 0;
+			let opponentScore = 0;
 
 			function gameStartCountdown() {
 				const loader = document.querySelector('#loader')
@@ -375,11 +376,25 @@
 				const base = lines === 1 ? 100 : lines === 2 ? 300 : lines === 3 ? 500 : lines >= 4 ? 800 : 0;
 				const gained = isHardDrop ? base * 2 : base;
 				score += gained;
-				updateScore();
+				if(gained) updateScore(score);
 			}
 
-			function updateScore() {
-				document.getElementById('score').textContent = `점수: ${score}`;
+			function updateScore(totalScore = 0) {
+
+				socket.on('game:score_update', function(data) {
+					const { players } = data;
+					const totalOpponentScore = players.filter((player) => player.user_id !== userId)[0].score
+					if(totalOpponentScore !== opponentScore) {
+						opponentScore = totalOpponentScore
+						document.getElementById('opponentScore').textContent = `점수: ${opponentScore}`;
+					} else return
+				})
+
+				document.getElementById('score').textContent = `점수: ${totalScore}`;
+				socket.emit('game:score_update',{
+					room_id: room_id,
+					score: totalScore
+				})
 			}
 
 			function animate(now = 0) {
