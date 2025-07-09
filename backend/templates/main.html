@@ -130,12 +130,12 @@
 				openModal(`
 					<div class="flex flex-col gap-[108px] items-center">
 						<div class="relative w-full">
-							<input id="room" type="text" placeholder="" class="peer w-[517px] h-[106px] pl-[24px] border-[5px] border-gray-300 rounded-[20px] text-[36px] focus:outline-none focus:border-green-500" />
-							<label for="room" class="absolute left-6 text-green-500 font-bold transition-all duration-200 leading-[48px] peer-placeholder-shown:top-8 peer-placeholder-shown:text-[48px] peer-focus:top-2 peer-focus:text-sm peer-focus:text-green-500">
+							<input id="room-num" type="text" placeholder="" class="peer w-[517px] h-[106px] pl-[24px] border-[5px] border-gray-300 rounded-[20px] text-[36px] focus:outline-none focus:border-green-500" />
+							<label for="room-num" class="absolute left-6 text-green-500 font-bold transition-all duration-200 leading-[48px] peer-placeholder-shown:top-8 peer-placeholder-shown:text-[48px] peer-focus:top-2 peer-focus:text-sm peer-focus:text-green-500">
 								방 번호
 							</label>
 						</div>
-						<button class="mt-[22px] w-[259px] h-[92px] py-3 bg-green-500 text-white text-[40px] font-bold rounded-[20px] hover:bg-green-600 transition">
+						<button class="mt-[22px] w-[259px] h-[92px] py-3 bg-green-500 text-white text-[40px] font-bold rounded-[20px] hover:bg-green-600 transition" onclick="joinRoom()">
 							입장 버튼
 						</button>
 						<div id='close-btn' class="absolute top-5 right-5">
@@ -144,14 +144,68 @@
 					</div>
 				`);
 			});
+			
+			async function createRoom() {
+				try {
+					const res = await fetch('/api/rooms/create', {
+					method: "POST",
+					headers: {
+						'Content-Type': 'application/json',
+						'credentials': 'include'
+					}
+				})
+				
+				const data = await res.json();
 
-			const socket = io({
-				withCredentials: true,
-			});
+				if(data.room_id) sessionStorage.setItem("room_id", data.room_id);
 
-			socket.on("connect", function () {
-				console.log("소켓 연결 성공!");
-			});
+				} catch (err) {
+					alert('방 생성 중 오류 발생: ' + err.message);
+				}		
+			}
+			const createRoomBtn = document.getElementById("createRoomBtn");
+			createRoomBtn.addEventListener('click',createRoom)
+
+			
+
+			function joinRoom() {
+				const roomIdInputValue = document.getElementById('room-num').value;
+				if(checkRoomId(roomIdInputValue)) {
+					
+					const socket = io('http://localhost:8000', {
+						withCredentials: true
+					});
+					
+					socket.on('connect', function() {
+						console.log('메인화면 소켓 연결');
+					})
+					socket.emit('room:join', { room_id: roomIdInputValue })
+					window.location.href = 'multi.html'
+				} else alert('asd')
+			}
+
+			async function checkRoomId(roomId) {
+				try {
+					const res = await fetch('/api/rooms/join', {
+						method: "POST",
+						headers: {
+							'Content-Type': 'application/json',
+							'credentials': 'include'
+						},
+						body: JSON.stringify({ room_id: roomId })
+					})
+				
+					const data = await res.json();
+
+					console.log(data)
+
+					return true
+
+					} catch (err) {
+						alert('방 참가 중 오류 발생: ' + err.message);
+						return false
+				}		
+			}
 		</script>
 	</body>
 </html>
