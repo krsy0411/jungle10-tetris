@@ -144,6 +144,15 @@
 					</div>
 				`);
 			});
+
+			// 서버 주소는 백엔드 .env의 HOST/PORT에 맞게 지정
+			const socket = io("http://localhost:8000", {
+				withCredentials: true,
+			});
+
+			socket.on("connect", function () {
+				console.log("소켓 연결 성공!");
+			});
 		</script>
 	</body>
 </html>
