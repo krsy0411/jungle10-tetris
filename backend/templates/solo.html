@@ -30,6 +30,17 @@
 				<p id="time">남은 시간 : 60sec</p>
 			</div>
 		</main>
+		<div id="modal" class="hidden">
+			<div
+				class="modal-bg fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50"
+			>
+				<div
+					class="modal-container relative bg-white rounded-lg shadow-lg p-8 w-[400px] h-[300px] flex flex-col items-center justify-center"
+				>
+					<div id="modal-content"></div>
+				</div>
+			</div>
+		</div>
 		<script>
 			
 			const COLS = 10;
@@ -118,6 +129,52 @@
 				}
 			}
 
+			async function fetchGameEnd() {
+				try {
+					const res = await fetch('/api/game/solo/end', {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json',
+						'credentials': 'include'
+					},
+					body: JSON.stringify({
+						score: score
+					})
+					});
+
+					const data = await res.json();
+					
+					const html = `
+						<div class="flex flex-col justify-center items-center gap-12 text-center">
+						<p class="text-green-500 text-[40px]">점수: ${score}</p>
+						<button id="confirm-btn" class="mt-[22px] w-[150px] h-[62px] bg-green-500 text-white text-[40px] font-bold rounded-[20px] hover:bg-green-600 transition text-center items-center">확인</button>
+						</div>
+					`
+
+					openModal(html,data.score)
+
+					
+					if (!res.ok) {
+						throw new Error(data.error || '게임 종료 중 오류');
+					}
+				} catch (err) {
+					alert('게임 종료 중 오류 발생: ' + err.message);
+				}		
+			}
+
+			function openModal(contentHTML, score) {
+				const modal = document.getElementById("modal");
+				const modalContent = document.getElementById("modal-content");
+				const modalBg = document.querySelector(".modal-bg");
+
+				modalContent.innerHTML = contentHTML;
+				const confitmBtn = document.getElementById("confirm-btn");
+				modal.classList.remove("hidden");
+				confitmBtn.addEventListener('click', () => {
+					window.location.href = 'main.html'
+				})
+			}
+
 			function startGame(gameDuration) {
 				game.grid = initializeBoard();
 				game.current = generateBlock();
@@ -137,7 +194,9 @@
 			drawGrid();
 			drawFixedBlocks();
 			if (game.current) drawCurrentBlock();
-			if (game.over) drawGameOver();
+			if (game.over) {
+				fetchGameEnd();
+			}
 			}
 
 			function clear() {
@@ -182,14 +241,6 @@
 			block.blocks.forEach(([dx, dy]) => {
 				ctx.fillRect(block.x + dx, block.y + dy, 1, 1);
 			});
-			}
-
-			function drawGameOver() {
-			const ctx = game.ctx;
-			ctx.fillStyle = 'white';
-			ctx.font = '1.2px Arial';
-			ctx.textAlign = 'center';
-			ctx.fillText('GAME OVER', COLS / 2, ROWS / 2);
 			}
 
 			function generateBlock() {
