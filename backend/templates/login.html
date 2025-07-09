@@ -73,24 +73,38 @@
 				id="loginForm"
 				class="flex flex-col items-center gap-5 pt-10"
 			>
-				<input
-					type="text"
-					id="user_id"
-					name="user_id"
-					placeholder="아이디"
-					class="flex-shrink-0 rounded-2xl border-4 border-gray-300 bg-white text-5xl pl-5"
-					style="width: 517px; height: 70px"
-					required
-				/>
-				<input
-					type="password"
-					id="password"
-					name="password"
-					placeholder="비밀번호"
-					class="flex-shrink-0 rounded-2xl border-4 border-gray-300 bg-white text-5xl pl-5"
-					style="width: 517px; height: 70px"
-					required
-				/>
+				<div class="relative" style="width: 517px; height: 70px">
+					<input
+						type="text"
+						id="user_id"
+						name="user_id"
+						placeholder=" "
+						class="peer w-full h-full px-4 pt-6 pb-2 border-4 border-gray-300 rounded-2xl text-2xl focus:outline-none focus:border-green-500 bg-white"
+						required
+					/>
+					<label for="user_id" class="absolute left-4 top-5 text-green-500 text-2xl font-bold transition-all duration-200
+						peer-placeholder-shown:top-5 peer-placeholder-shown:text-2xl
+						peer-focus:top-2 peer-focus:text-sm peer-focus:text-green-500
+						peer-valid:top-2 peer-valid:text-sm">
+						아이디
+					</label>
+				</div>
+				<div class="relative" style="width: 517px; height: 70px">
+					<input
+						type="password"
+						id="password"
+						name="password"
+						placeholder=" "
+						class="peer w-full h-full px-4 pt-6 pb-2 border-4 border-gray-300 rounded-2xl text-2xl focus:outline-none focus:border-green-500 bg-white"
+						required
+					/>
+					<label for="password" class="absolute left-4 top-5 text-green-500 text-2xl font-bold transition-all duration-200
+						peer-placeholder-shown:top-5 peer-placeholder-shown:text-2xl
+						peer-focus:top-2 peer-focus:text-sm peer-focus:text-green-500
+						peer-valid:top-2 peer-valid:text-sm">
+						비밀번호
+					</label>
+				</div>
 				<button
 					type="submit"
 					class="flex-shrink-0 rounded-2xl border-green-400 text-white font-bold text-5xl bg-green-400 hover:bg-green-600 transition-colors duration-200"
@@ -106,9 +120,5 @@
 				</div>
 			</form>
 		</main>
-
-		<script>
-			// 로그인 관련 JavaScript는 추후 작성 예정
-		</script>
 	</body>
 </html>

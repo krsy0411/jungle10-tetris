@@ -1,1 +1,1 @@
-# Routes package initialization
+# 라우팅 패키지 초기화

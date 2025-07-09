@@ -5,7 +5,9 @@
 import os
 import sys
 from pathlib import Path
+import eventlet
 
+eventlet.monkey_patch()
 # 프로젝트 루트 경로를 Python path에 추가
 project_root = Path(__file__).parent
 sys.path.insert(0, str(project_root))

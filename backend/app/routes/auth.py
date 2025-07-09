@@ -6,8 +6,8 @@ from app.models.user import User
 
 def validate_user_id(user_id):
     """사용자 ID 유효성 검증"""
-    if not user_id or len(user_id) < 5 or len(user_id) > 20:
-        return False, "아이디는 5-20자 사이여야 합니다"
+    if not user_id or len(user_id) < 3 or len(user_id) > 20:
+        return False, "아이디는 3-20자 사이여야 합니다"
     
     if not re.match(r'^[a-zA-Z0-9]+$', user_id):
         return False, "아이디는 영문과 숫자만 사용할 수 있습니다"
@@ -28,8 +28,8 @@ def validate_name(name):
 
 def validate_password(password):
     """비밀번호 유효성 검증"""
-    if not password or len(password) < 8 or len(password) > 20:
-        return False, "비밀번호는 8-20자 사이여야 합니다"
+    if not password or len(password) < 4 or len(password) > 20:
+        return False, "비밀번호는 4-20자 사이여야 합니다"
     
     # 영문, 숫자, 특수문자 포함 여부 검증
     has_alpha = re.search(r'[a-zA-Z]', password)
@@ -55,9 +55,3 @@ def create_user_tokens(user_id, refresh_token_version):
         additional_claims={'refresh_token_version': refresh_token_version}
     )
     return access_token, refresh_token
-
-
-# =============================================================================
-# 인증 관련 유틸리티 함수들
-# main.py에서 import해서 사용
-# =============================================================================

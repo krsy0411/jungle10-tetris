@@ -49,10 +49,10 @@ def create_app():
     def missing_token_callback(error):
         return jsonify({'error': '토큰이 필요합니다'}), 401
     
-    # Socket.IO 초기화
-    socketio.init_app(app, 
-                     cors_allowed_origins=os.getenv('CORS_ORIGINS', 'http://localhost:3000').split(','),
-                     async_mode='threading')
+    # Socket.IO 초기화 (eventlet 사용, 모든 오리진 허용)
+    socketio.init_app(app,
+                     cors_allowed_origins="*",
+                     async_mode='eventlet')
     
     # 데이터베이스 연결
     from app.utils.database import init_db

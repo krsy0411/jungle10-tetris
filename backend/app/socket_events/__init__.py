@@ -1,1 +1,1 @@
-# Socket events package initialization
+# 소켓 이벤트 패키지 초기화

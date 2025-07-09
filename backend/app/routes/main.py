@@ -1,10 +1,9 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify, current_app, make_response
-from flask_jwt_extended import jwt_required, get_jwt_identity, create_access_token, create_refresh_token, set_access_cookies, set_refresh_cookies, unset_jwt_cookies
+from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify, current_app, make_response, make_response
+from flask_jwt_extended import jwt_required, get_jwt_identity, create_access_token, create_refresh_token, decode_token, set_access_cookies, set_refresh_cookies, unset_jwt_cookies, set_access_cookies, set_refresh_cookies, unset_jwt_cookies
 from app.models.user import User
 from app.models.game_room import GameRoom
 from app.models.game_record import GameRecord
 from app.routes.auth import validate_user_id, validate_name, validate_password
-from datetime import datetime
 
 main_bp = Blueprint('main', __name__)
 
@@ -51,11 +50,6 @@ def login():
         set_access_cookies(response, access_token)
         set_refresh_cookies(response, refresh_token)
         
-        # 세션에는 기본 정보만 저장 (SSR용)
-        session['user_id'] = user_id
-        session['user_name'] = user.name
-        session.permanent = True
-        
         # 성공 시
         return response
             
@@ -69,14 +63,12 @@ def register():
     """회원가입 페이지 (SSR)"""
     if request.method == 'GET':
         return render_template('register.html')
-
     # POST: 폼 처리
     try:
         user_id = request.form.get('user_id', '').strip()
         name = request.form.get('name', '').strip()
         password = request.form.get('password', '')
         password_confirm = request.form.get('password_confirm', '')
-
         # 유효성 검증
         is_valid_id, id_error = validate_user_id(user_id)
         if not is_valid_id:
@@ -117,11 +109,6 @@ def register():
         set_access_cookies(response, access_token)
         set_refresh_cookies(response, refresh_token)
 
-        # 세션에 저장 (SSR 네비게이션용)
-        session['user_id'] = user_id
-        session['user_name'] = user.name
-        session.permanent = True
-
         # 성공 시
         return response
 
@@ -147,6 +134,10 @@ def logout():
 def main():    
     return render_template('main.html')
 
+@main_bp.route('/main.html')
+def main_html_redirect():
+    return redirect(url_for('main.main'))
+
 @main_bp.route('/solo')
 @jwt_required()
 def solo():
@@ -156,7 +147,13 @@ def solo():
     if not user:
         flash('사용자를 찾을 수 없습니다.', 'error')
         return redirect(url_for('main.login'))
-    return render_template('solo.html', user_name=user.name)
+    # 사용자 최고 점수 조회 (solo_high_score)
+    high_score = user.solo_high_score if hasattr(user, 'solo_high_score') else 0
+    return render_template('solo.html', user_name=user.name, user_high_score=high_score)
+
+@main_bp.route('/solo.html')
+def solo_html_redirect():
+    return redirect(url_for('main.solo'))
 
 @main_bp.route('/multi')
 @jwt_required()
@@ -169,7 +166,13 @@ def multi():
         flash('사용자를 찾을 수 없습니다.', 'error')
         return redirect(url_for('main.login'))
     
-    return render_template('multi.html', user_name=user.name)
+    # 사용자 최고 점수 조회 (solo_high_score)
+    high_score = user.solo_high_score if hasattr(user, 'solo_high_score') else 0
+    return render_template('multi.html', user_name=user.name, user_high_score=high_score)
+
+@main_bp.route('/multi.html')
+def multi_html_redirect():
+    return redirect(url_for('main.multi'))
 
 @main_bp.route('/ranking')
 @jwt_required()
@@ -211,7 +214,6 @@ def ranking():
     current_user = {'name': user.name}
     current_user_wins = user.wins  # 실제 사용자의 승리 횟수
     current_user_score = user.solo_high_score  # 실제 사용자의 최고 점수
-
     return render_template('ranking.html', 
                          win_ranking=win_ranking,
                          score_ranking=score_ranking,
@@ -220,9 +222,49 @@ def ranking():
                          current_user_score=current_user_score,
                          user_name=user.name)
 
+@main_bp.route('/ranking.html')
+def ranking_html_redirect():
+    return redirect(url_for('main.ranking'))
+
 # ============================================================================
 # API 엔드포인트들 (JWT 기반 인증)
 # ============================================================================
+
+# 리프레시 토큰을 통한 액세스 토큰 재발급 API
+@main_bp.route('/api/auth/refresh', methods=['POST'])
+def api_refresh_token():
+    """리프레시 토큰으로 액세스 토큰 재발급 API"""
+    try:
+        data = request.get_json() or {}
+        refresh_token = data.get('refresh_token')
+        if not refresh_token:
+            return jsonify({'error': '리프레시 토큰이 필요합니다'}), 400
+
+        try:
+            decoded = decode_token(refresh_token)
+        except Exception:
+            return jsonify({'error': '유효하지 않은 토큰입니다'}), 401
+
+        if decoded.get('type') != 'refresh':
+            return jsonify({'error': '리프레시 토큰이 아닙니다'}), 401
+
+        user_id = decoded.get('sub')
+        if not user_id:
+            return jsonify({'error': '토큰에 사용자 정보가 없습니다'}), 401
+
+        user = User.find_by_user_id(user_id)
+        if not user:
+            return jsonify({'error': '사용자를 찾을 수 없습니다'}), 404
+
+        # (선택) refresh_token_issued_at 등 추가 검증 필요시 구현
+
+        # 새 액세스 토큰 발급
+        access_token = create_access_token(identity=user_id)
+
+        return jsonify({'access_token': access_token}), 200
+    except Exception as e:
+        current_app.logger.error(f"Refresh token error: {str(e)}")
+        return jsonify({'error': '토큰 갱신 중 오류가 발생했습니다'}), 500
 
 # 방 생성 API
 @main_bp.route('/api/rooms/create', methods=['POST'])
@@ -236,17 +278,6 @@ def api_create_room():
         user = User.find_by_user_id(user_id)
         if not user:
             return jsonify({'error': '사용자를 찾을 수 없습니다'}), 404
-        
-        # 이미 생성한 방이 있는지 확인
-        from app.utils.database import get_db
-        db = get_db()
-        existing_room = db.game_rooms.find_one({
-            'host_user_id': user_id,
-            'status': {'$in': ['waiting', 'playing']}
-        })
-        
-        if existing_room:
-            return jsonify({'error': '이미 생성한 방이 있습니다'}), 400
         
         # 새 방 생성
         room = GameRoom(
@@ -301,36 +332,6 @@ def api_join_room():
         success, message = room.add_participant(user_id, user.name)
         if not success:
             return jsonify({'error': message}), 400
-        
-        # 2명이 되면 Socket.IO로 게임 시작 알림
-        if len(room.participants) == 2:
-            from app import socketio
-            
-            # 게임 시작
-            success, start_message = room.start_game()
-            if success:
-                # 참가자 정보
-                players = [
-                    {'name': p['name'], 'user_id': p['user_id'], 'score': 0} 
-                    for p in room.participants
-                ]
-                
-                # 방의 모든 참가자에게 게임 시작 알림
-                socketio.emit('game:start', {
-                    'room_id': room_id,
-                    'game_time': 60,  # 60초 게임
-                    'players': players,
-                    'message': '게임이 시작됩니다!'
-                }, room=f'room_{room_id}')
-        
-        # Socket.IO 방 참가 알림
-        from app import socketio
-        socketio.emit('room:player_joined', {
-            'room_id': room_id,
-            'player_name': user.name,
-            'players_count': len(room.participants),
-            'message': f'{user.name}님이 방에 참가했습니다'
-        }, room=f'room_{room_id}')
         
         return jsonify({
             'message': message,
@@ -426,119 +427,6 @@ def api_end_solo_game():
         current_app.logger.error(f"End solo game error: {str(e)}")
         return jsonify({'error': '솔로 게임 종료 중 오류가 발생했습니다'}), 500
 
-# 멀티 게임 시작 API
-@main_bp.route('/api/game/multi/start', methods=['POST'])
-@jwt_required()
-def api_start_multi_game():
-    """멀티 게임 시작 API (JWT 인증)"""
-    try:
-        user_id = get_jwt_identity()
-        data = request.get_json() or {}
-        room_id = data.get('room_id')
-        if not room_id:
-            return jsonify({'error': '방 번호를 입력해주세요'}), 400
-
-        # 방 조회
-        room = GameRoom.find_by_room_id(room_id)
-        if not room:
-            return jsonify({'error': '존재하지 않는 방입니다'}), 404
-
-        # 방장만 시작 가능
-        if not room.is_host(user_id):
-            return jsonify({'error': '방장만 게임을 시작할 수 있습니다'}), 403
-
-        # 게임 시작 처리 (이미 시작된 경우 등은 GameRoom 내부에서 처리)
-        success, message = room.start_game()
-        if not success:
-            return jsonify({'error': message}), 400
-
-        # 참가자 정보
-        players = [{'name': p['name'], 'user_id': p['user_id'], 'score': 0} for p in room.participants]
-
-        return jsonify({
-            'room_id': room_id,
-            'game_time': 60,  # 60초 게임
-            'players': players,
-            'message': '멀티 게임이 시작되었습니다'
-        }), 200
-
-    except Exception as e:
-        current_app.logger.error(f"Start multi game error: {str(e)}")
-        return jsonify({'error': '멀티 게임 시작 중 오류가 발생했습니다'}), 500
-
-# 멀티 게임 종료 API
-@main_bp.route('/api/game/multi/end', methods=['POST'])
-@jwt_required()
-def api_end_multi_game():
-    """멀티 게임 종료 API (JWT 인증)"""
-    try:
-        user_id = get_jwt_identity()
-        data = request.get_json() or {}
-        room_id = data.get('room_id')
-        score = data.get('score', 0)
-
-        if not room_id:
-            return jsonify({'error': '방 번호를 입력해주세요'}), 400
-        if not isinstance(score, int) or score < 0:
-            return jsonify({'error': '유효하지 않은 점수입니다'}), 400
-
-        # 방 조회
-        room = GameRoom.find_by_room_id(room_id)
-        if not room:
-            return jsonify({'error': '존재하지 않는 방입니다'}), 404
-
-        # 참가자 점수 갱신
-        room.update_participant_score(user_id, score)
-
-        # 모든 참가자가 점수를 제출했는지 확인
-        all_finished = all(p.get('score', 0) > 0 for p in room.participants)
-
-        result = {
-            'room_id': room_id,
-            'your_score': score,
-            'all_finished': all_finished
-        }
-
-        if all_finished:
-            # 승자 결정 (점수 가장 높은 사람)
-            winner = max(room.participants, key=lambda p: p.get('score', 0))
-            scores = {p['user_id']: p.get('score', 0) for p in room.participants}
-
-            # 게임 종료 처리
-            room.end_game(scores)
-
-            # 게임 기록 저장
-            from app.models.game_record import GameRecord
-            players_data = [
-                {'user_id': p['user_id'], 'name': p['name'], 'score': p.get('score', 0)}
-                for p in room.participants
-            ]
-            GameRecord.create_multiplayer_record(
-                room_id, players_data, scores, winner['user_id'], 60
-            )
-
-            # 사용자 통계 업데이트
-            for participant in room.participants:
-                participant_user = User.find_by_user_id(participant['user_id'])
-                if participant_user:
-                    is_winner = participant['user_id'] == winner['user_id']
-                    game_result = 'win' if is_winner else 'loss'
-                    participant_user.update_stats(
-                        score_gained=participant.get('score', 0),
-                        game_result=game_result
-                    )
-
-            result.update({
-                'message': '게임이 종료되었습니다',
-                'final_scores': scores,
-                'winner': winner['name']
-            })
-
-        return jsonify(result), 200
-
-    except Exception as e:
-        current_app.logger.error(f"End multi game error: {str(e)}")
-        return jsonify({'error': '멀티 게임 종료 중 오류가 발생했습니다'}), 500
 
 # 랭킹 API
 @main_bp.route('/api/ranking/score', methods=['GET'])

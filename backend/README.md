@@ -44,7 +44,7 @@ backend/
 ### 1. 환경 준비
 
 ```bash
-# Python 3.8+ 필요
+# Python 3.11 필요
 python --version
 
 # MongoDB 설치 및 실행 (로컬 개발용)
@@ -60,7 +60,7 @@ mongod --dbpath /your/db/path
 
 ```bash
 # 가상환경 생성
-python -m venv venv
+python3.11 -m venv venv
 
 # 가상환경 활성화
 # macOS/Linux:
