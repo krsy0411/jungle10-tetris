@@ -238,10 +238,17 @@ def register_game_events(socketio):
             if not room:
                 emit('error', {'type': 'ROOM_NOT_FOUND', 'message': '존재하지 않는 방입니다'})
                 return
-            # 최종 점수 업데이트
-            room.update_participant_score(user.user_id, final_score)
-            # 모든 플레이어가 게임을 마쳤는지 확인
-            all_finished = all(p.get('score', 0) > 0 for p in room.participants)
+                        # 최종 점수 및 finished 상태 업데이트
+            for participant in room.participants:
+                if participant['user_id'] == user.user_id:
+                    participant['score'] = final_score
+                    participant['finished'] = True
+            room.save()
+            current_app.logger.info(f"Updated score/finished for user {user.user_id}: {final_score}")
+
+            # 모든 플레이어가 게임을 마쳤는지 확인 (finished 플래그로 체크)
+            all_finished = all(p.get('finished', False) for p in room.participants)
+            current_app.logger.info(f"All players finished: {all_finished}")
             result = {
                 'room_id': room_id,
                 'your_score': final_score,

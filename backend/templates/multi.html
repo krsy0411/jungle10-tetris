@@ -60,7 +60,7 @@
 					<div>{{ user_name }}</div>
 					<div id="high-score">최고 점수 : {{ user_high_score }}</div>
 					<div id="score">점수 : 0</div>
-					<div id="time">남은 시간 : 60초</div>
+					<div id="time">남은 시간 : 00초</div>
 				</div>
 				<div class="flex flex-col justify-start text-blue-500 text-3xl gap-10 mt-[50px]">
 					<div id="opponent">상대 이름</div>
@@ -77,6 +77,17 @@
 					text-black text-[300px] hidden z-[1000] rotate-14">
 			</div>
 		</div>
+		<div id="modal" class="hidden">
+			<div
+				class="modal-bg fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50"
+			>
+				<div
+					class="modal-container relative bg-white rounded-lg shadow-lg p-8 w-[600px] h-[400px] flex flex-col items-center justify-center"
+				>
+					<div id="modal-content"></div>
+				</div>
+			</div>
+		</div>
 
 		<script>
 			const socket = io('http://localhost:8000', {
@@ -87,6 +98,7 @@
 			roomId.textContent = room_id
 
 			let userId = ''
+			let hasGameEnded = false;
 
 			socket.on('connect', function() {
 				console.log('멀티페이지 소켓 연결');
@@ -107,6 +119,7 @@
 			const COLS = 10;
 			const ROWS = 15;
 			const BLOCK_SIZE = window.innerHeight * 0.06;
+			const GAME_TIME = 60; // 게임 시간 (초)
 
 			const KEY = Object.freeze({
 				LEFT: 37,
@@ -145,7 +158,7 @@
 				start: 0,
 				elapsed: 0,
 				interval: 1000,
-				remaining: 60,
+				remaining: GAME_TIME,
 				lastTick: 0
 			};
 
@@ -188,7 +201,7 @@
 			}
 
 			function updateTime() {
-				document.getElementById('time').textContent = `남은 시간: ${time.remaining}sec`;
+				document.getElementById('time').textContent = `남은 시간: ${time.remaining}초`;
 			}
 
 			function startGame() {
@@ -198,7 +211,7 @@
 				score = 0;
 				updateScore();
 				time.start = performance.now();
-				time.remaining = 60;
+				time.remaining = GAME_TIME;
 				time.lastTick = 0;
 				updateTime();
 				animate();
@@ -211,7 +224,10 @@
 				drawGrid();
 				drawFixedBlocks();
 				if (game.current) drawCurrentBlock();
-				if (game.over) drawGameOver();
+				 if (game.over && !hasGameEnded) {
+					hasGameEnded = true;
+					socketGameEnd();
+				}
 			}
 
 			function clear() {
@@ -256,14 +272,6 @@
 				block.blocks.forEach(([dx, dy]) => {
 					ctx.fillRect(block.x + dx, block.y + dy, 1, 1);
 				});
-			}
-
-			function drawGameOver() {
-				const ctx = game.ctx;
-				ctx.fillStyle = 'white';
-				ctx.font = '1.2px Arial';
-				ctx.textAlign = 'center';
-				ctx.fillText('GAME OVER', COLS / 2, ROWS / 2);
 			}
 
 			function generateBlock() {
@@ -440,9 +448,68 @@
 				}
 			}
 
+			function socketGameEnd() {
+				socket.on('game:end', function(data) {
+					const {status} = data
+					if(status === 'waiting') {
+						openModal(score, status, )
+					} else if(status === 'finished') {
+						openModal(score, status, data)
+					}
+				})
+				socket.emit('game:end', {
+					room_id: room_id,
+					score: score
+				})
+			}
+
+			// room:leave 이벤트 리스너 등록
+			socket.on('room:leave', function(data) {
+				console.log('방 나가기 이벤트 수신:', data);
+				// 여기에 방을 나간 사용자에 대한 처리 로직 추가
+				// 예: 플레이어 목록 업데이트, UI 업데이트 등
+			})
+
+			function openModal(score, status, data = {}) {
+				const modal = document.getElementById("modal");
+				const modalContent = document.getElementById("modal-content");
+				const modalBg = document.querySelector(".modal-bg");
+				modal.classList.remove("hidden");
+				const result = data.is_draw ? '무승부' : (data.winner === userId ? '승리' : '패배');
+				
+				if(status === 'waiting') {
+					const html = `
+						<div class="text-green-500 text-[32px]" >
+							상대방을 기다리는 중..
+						</div>
+					`
+					modalContent.innerHTML = html;
+				} else if(status === 'finished') {
+					const html = `
+						    <div class="flex flex-col justify-center items-center gap-12 text-center">
+      							<p class="text-[48px] font-bold text-green-500">${result}</p>
+      							<p class="text-green-500 text-[40px]">점수: ${score}</p>
+      							<button id="confirm-btn" class="mt-[22px] w-[180px] h-[72px] bg-green-500 text-white text-[40px] font-bold rounded-[20px] hover:bg-green-600 transition text-center items-centern">확인</button>
+							</div>
+						`
+						modalContent.innerHTML = html;
+						const confirmBtn = document.getElementById('confirm-btn')
+						confirmBtn.addEventListener('click',()=>{ 
+							socket.emit('room:leave', {
+								room_id: room_id
+							})
+							socket.on('room:leave', (data) => {
+								console.log(data)
+							})
+							// window.location.href = 'main.html'
+						})
+					}
+				}
+
 			initializeCanvas();
 			drawGrid();
 			document.addEventListener('keydown', onKeyDown);
+
 		</script>
 	</body>
 </html>
