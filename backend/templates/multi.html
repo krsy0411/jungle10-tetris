@@ -57,13 +57,13 @@
 			<aside>
 				<h1 id="room-id" class="text-4xl text-green-500 font-bold text-center">1번 방</h1>
 				<div class="flex flex-col justify-start text-green-500 text-3xl gap-10 mt-10">
-					<div>이름</div>
-					<div id="high-score">최고 점수 : 0</div>
+					<div>{{ user_name }}</div>
+					<div id="high-score">최고 점수 : {{ user_high_score }}</div>
 					<div id="score">점수 : 0</div>
-					<div id="time">남은 시간 : 30초</div>
+					<div id="time">남은 시간 : 60초</div>
 				</div>
 				<div class="flex flex-col justify-start text-blue-500 text-3xl gap-10 mt-[50px]">
-					<div>상대 이름</div>
+					<div id="opponent">상대 이름</div>
 					<div>점수 : 0</div>
 				</div>
 			</aside>
@@ -79,6 +79,31 @@
 		</div>
 
 		<script>
+			const socket = io('http://localhost:8000', {
+				withCredentials: true
+			});
+			const room_id = sessionStorage.getItem('room_id');
+			const roomId = document.getElementById('room-id')
+			roomId.textContent = room_id
+
+			let userId = ''
+
+			socket.on('connect', function() {
+				console.log('멀티페이지 소켓 연결');
+			});
+			socket.on('connect_success', function(data) {
+				userId = data.user_id
+				sessionStorage.setItem('user_Id', userId)
+			})
+			socket.on('game:start', function(data) {
+				const { players } = data
+				const opponent = players.filter((player)=> player.user_id !== userId)[0];
+				const opponentName = document.getElementById('opponent');
+				opponentName.textContent = opponent.name;
+				gameStartCountdown();
+			})
+			socket.emit('room:join',{ room_id });
+
 			const COLS = 10;
 			const ROWS = 15;
 			const BLOCK_SIZE = window.innerHeight * 0.06;
@@ -96,7 +121,6 @@
 				[KEY.RIGHT]: { dx: 1, dy: 0 },
 				[KEY.DOWN]: { dx: 0, dy: 1 }
 			};
-
 			const COLORS = ['cyan', 'blue', 'orange', 'yellow', 'green', 'purple', 'red'];
 
 			const BLOCK_SHAPES = [
@@ -121,7 +145,7 @@
 				start: 0,
 				elapsed: 0,
 				interval: 1000,
-				remaining: 30,
+				remaining: 60,
 				lastTick: 0
 			};
 
@@ -173,7 +197,7 @@
 				score = 0;
 				updateScore();
 				time.start = performance.now();
-				time.remaining = 30;
+				time.remaining = 60;
 				time.lastTick = 0;
 				updateTime();
 				animate();
@@ -404,23 +428,6 @@
 			initializeCanvas();
 			drawGrid();
 			document.addEventListener('keydown', onKeyDown);
-
-			const socket = io('http://localhost:8000', {
-				withCredentials: true
-			});
-			const room_id = sessionStorage.getItem('room_id');
-			const roomId = document.getElementById('room-id')
-			roomId.textContent = room_id
-
-			socket.on('connect', function() {
-				console.log('멀티페이지 소켓 연결');
-			});
-			socket.on('game:start', function() {
-				gameStartCountdown();
-			})
-			socket.emit('room:join',{ room_id });
-
-
 		</script>
 	</body>
 </html>
