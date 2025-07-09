@@ -145,6 +145,10 @@ def logout():
 def main():    
     return render_template('main.html')
 
+@main_bp.route('/main.html')
+def main_html_redirect():
+    return redirect(url_for('main.main'))
+
 @main_bp.route('/solo')
 @jwt_required()
 def solo():
@@ -157,6 +161,10 @@ def solo():
     # 사용자 최고 점수 조회 (solo_high_score)
     high_score = user.solo_high_score if hasattr(user, 'solo_high_score') else 0
     return render_template('solo.html', user_name=user.name, user_high_score=high_score)
+
+@main_bp.route('/solo.html')
+def solo_html_redirect():
+    return redirect(url_for('main.solo'))
 
 @main_bp.route('/multi')
 @jwt_required()
@@ -172,6 +180,10 @@ def multi():
     # 사용자 최고 점수 조회 (solo_high_score)
     high_score = user.solo_high_score if hasattr(user, 'solo_high_score') else 0
     return render_template('multi.html', user_name=user.name, user_high_score=high_score)
+
+@main_bp.route('/multi.html')
+def multi_html_redirect():
+    return redirect(url_for('main.multi'))
 
 @main_bp.route('/ranking')
 @jwt_required()
@@ -220,6 +232,10 @@ def ranking():
                          current_user_wins=current_user_wins,
                          current_user_score=current_user_score,
                          user_name=user.name)
+
+@main_bp.route('/ranking.html')
+def ranking_html_redirect():
+    return redirect(url_for('main.ranking'))
 
 # ============================================================================
 # API 엔드포인트들 (JWT 기반 인증)
