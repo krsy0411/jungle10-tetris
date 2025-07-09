@@ -28,9 +28,6 @@ class Config:
     # MongoDB 설정
     MONGODB_URI = os.getenv('MONGODB_URI', 'mongodb://localhost:27017/jungle_tetris')
     
-    # CORS 설정
-    CORS_ORIGINS = os.getenv('CORS_ORIGINS', 'http://localhost:3000').split(',')
-    
     # Socket.IO 설정
     SOCKETIO_ASYNC_MODE = 'eventlet'
     
@@ -41,10 +38,7 @@ class Config:
     # 게임 설정
     GAME_TIME_LIMIT = 60  # 60초
     MAX_ROOM_PLAYERS = 2  # 최대 2명
-    ROOM_TIMEOUT = 600    # 10분 비활성 시 자동 삭제
+    ROOM_TIMEOUT = 150    # 2분30초 비활성 시 자동 삭제
     
     # 랭킹 설정
     MAX_RANKING_LIMIT = 100
-    
-    # 보안 설정
-    BCRYPT_LOG_ROUNDS = 12  # bcrypt 해싱 라운드

@@ -1,8 +1,6 @@
 from flask_jwt_extended import create_access_token, create_refresh_token
 from datetime import timedelta
 import re
-from app.models.user import User
-
 
 def validate_user_id(user_id):
     """사용자 ID 유효성 검증"""

@@ -265,15 +265,29 @@ socket.emit("game:end", {
 
 ```javascript
 socket.on('game:end', (data) => {
-  // data 구조
+  // 승부가 결정된 경우
   {
     room_id: 123,
-    message: "게임이 종료되었습니다",
+    message: "김철수님이 승리했습니다!",
+    status: "finished",
     final_scores: {
       "홍길동": 2500,
       "김철수": 3200
     },
-    winner: "김철수"
+    winner: "김철수",
+    is_draw: false
+  }
+  
+  // 무승부인 경우
+  {
+    room_id: 123,
+    message: "무승부입니다!",
+    status: "finished",
+    final_scores: {
+      "홍길동": 2500,
+      "김철수": 2500
+    },
+    is_draw: true
   }
 });
 ```
