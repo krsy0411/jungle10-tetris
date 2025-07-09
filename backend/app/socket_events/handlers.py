@@ -1,6 +1,6 @@
 from flask_socketio import emit, join_room, leave_room, disconnect
 from flask import current_app, request
-from flask_jwt_extended import decode_token, get_jwt_identity
+from flask_jwt_extended import decode_token
 from app.models.user import User
 from app.models.game_room import GameRoom
 
@@ -133,7 +133,6 @@ def register_room_events(socketio):
                     room.start_game()
                 players = [{'name': p['name'], 'user_id': p['user_id'], 'score': 0} for p in room.participants]
                 socketio.emit('game:start', {
-                    'room_id': room_id,
                     'players': players,
                     'game_time': 60  # 60초 게임
                 }, room=room_id)
@@ -159,7 +158,6 @@ def register_room_events(socketio):
             
             # 방 나가기 알림을 방 내 다른 사용자에게 브로드캐스트
             socketio.emit('room:leave', {
-                'room_id': room_id,
                 'user_name': user.name,
                 'message': f'{user.name}님이 방을 나갔습니다'
             }, room=room_id)
@@ -180,13 +178,6 @@ def register_room_events(socketio):
 
 def register_game_events(socketio):
     """게임 관련 이벤트 등록"""
-    
-    # 게임 시작은 방장이 아닌, 두 명이 모두 입장하면 서버가 자동으로 알림을 보냄
-
-    # 기존 game:start 이벤트 핸들러는 제거
-
-    # 방 참가 이벤트에서 참가자 수가 2명이 되면 게임 시작 알림을 브로드캐스트
-    # (room:join 이벤트 내부에서 처리)
     
     @socketio.on('game:score_update')
     def handle_score_update(data):
@@ -213,12 +204,11 @@ def register_game_events(socketio):
                 
                 # 업데이트된 플레이어 점수를 방 내 모든 사용자에게 브로드캐스트
                 players = [
-                    {'name': p['name'], 'score': p.get('score', 0)} 
+                    {'user_id': p['user_id'], 'score': p.get('score', 0)} 
                     for p in room.participants
                 ]
                 
                 socketio.emit('game:score_update', {
-                    'room_id': room_id,
                     'players': players
                 }, room=room_id)
             

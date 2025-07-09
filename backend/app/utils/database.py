@@ -75,31 +75,3 @@ def get_db():
     if db is None:
         init_db()
     return db
-
-def close_db():
-    """데이터베이스 연결 종료"""
-    global client
-    if client:
-        client.close()
-        logging.info("✅ MongoDB 연결 종료")
-
-# 컬렉션 헬퍼 함수들
-def get_collection(name):
-    """특정 컬렉션 반환"""
-    return get_db()[name]
-
-def get_users_collection():
-    """users 컬렉션 반환"""
-    return get_collection('users')
-
-def get_rooms_collection():
-    """rooms 컬렉션 반환"""
-    return get_collection('rooms')
-
-def get_game_records_collection():
-    """game_records 컬렉션 반환"""
-    return get_collection('game_records')
-
-def get_user_stats_collection():
-    """user_stats 컬렉션 반환"""
-    return get_collection('user_stats')

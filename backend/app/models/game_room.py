@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime
 from app.utils.database import get_db
 import uuid
 
@@ -70,12 +70,6 @@ class GameRoom:
         doc = db.game_rooms.find_one({'room_id': room_id})
         return GameRoom.from_mongodb_doc(doc)
 
-    @staticmethod
-    def exists(room_id):
-        """방 존재 여부 확인"""
-        db = get_db()
-        return db.game_rooms.find_one({'room_id': room_id}) is not None
-
     def save(self):
         """방 정보 저장"""
         db = get_db()
@@ -111,18 +105,6 @@ class GameRoom:
         self.participants.append(participant)
         self.save()
         return True, "방에 참가했습니다"
-
-    def remove_participant(self, user_id):
-        """참가자 제거"""
-        self.participants = [p for p in self.participants if p['user_id'] != user_id]
-        
-        # 방장이 나간 경우 방 삭제
-        if user_id == self.host_user_id:
-            self.delete()
-            return True, "방이 삭제되었습니다"
-        
-        self.save()
-        return True, "방에서 나갔습니다"
 
     def start_game(self):
         """게임 시작"""
@@ -166,31 +148,3 @@ class GameRoom:
     def can_join(self):
         """참가 가능 여부 확인"""
         return self.status == 'waiting' and len(self.participants) < 2
-
-    @staticmethod
-    def get_waiting_rooms(limit=10):
-        """대기 중인 방 목록 조회"""
-        db = get_db()
-        docs = db.game_rooms.find(
-            {'status': 'waiting'}
-        ).sort('created_at', -1).limit(limit)
-        
-        rooms = []
-        for doc in docs:
-            room = GameRoom.from_mongodb_doc(doc)
-            rooms.append(room.to_dict())
-        
-        return rooms
-
-    @staticmethod
-    def cleanup_old_rooms():
-        """오래된 방 정리 (10분 이상 비활성)"""
-        db = get_db()
-        cutoff_time = datetime.utcnow() - timedelta(minutes=10)
-        
-        result = db.game_rooms.delete_many({
-            'created_at': {'$lt': cutoff_time},
-            'status': {'$in': ['waiting', 'finished']}
-        })
-        
-        return result.deleted_count

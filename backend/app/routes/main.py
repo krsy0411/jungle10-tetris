@@ -4,7 +4,6 @@ from app.models.user import User
 from app.models.game_room import GameRoom
 from app.models.game_record import GameRecord
 from app.routes.auth import validate_user_id, validate_name, validate_password
-from datetime import datetime
 
 main_bp = Blueprint('main', __name__)
 
@@ -50,11 +49,6 @@ def login():
         response = make_response(redirect(url_for('main.main')))
         set_access_cookies(response, access_token)
         set_refresh_cookies(response, refresh_token)
-        
-        # 세션에는 기본 정보만 저장 (SSR용)
-        session['user_id'] = user_id
-        session['user_name'] = user.name
-        session.permanent = True
         
         # 성공 시
         return response
@@ -114,11 +108,6 @@ def register():
         response = make_response(redirect(url_for('main.main')))
         set_access_cookies(response, access_token)
         set_refresh_cookies(response, refresh_token)
-
-        # 세션에 저장 (SSR 네비게이션용)
-        session['user_id'] = user_id
-        session['user_name'] = user.name
-        session.permanent = True
 
         # 성공 시
         return response
