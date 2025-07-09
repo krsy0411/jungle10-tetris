@@ -1,1 +1,1 @@
-# Middleware package initialization
+# 미들웨어 패키지 초기화
