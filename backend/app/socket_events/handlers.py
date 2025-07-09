@@ -240,8 +240,12 @@ def register_game_events(socketio):
                 return
             # 최종 점수 업데이트
             room.update_participant_score(user.user_id, final_score)
-            # 모든 플레이어가 게임을 마쳤는지 확인
-            all_finished = all(p.get('score', 0) > 0 for p in room.participants)
+            # 해당 참가자에 finished 플래그 추가
+            for p in room.participants:
+                if p['user_id'] == user.user_id:
+                    p['finished'] = True
+            # 모든 플레이어가 게임을 마쳤는지 확인 (finished가 True인지)
+            all_finished = all(p.get('finished', False) for p in room.participants)
             result = {
                 'room_id': room_id,
                 'your_score': final_score,
