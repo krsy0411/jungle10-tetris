@@ -19,6 +19,408 @@
 
 		<title>정글 테트리스</title>
 	</head>
+	<style>
+		.overlay {
+			position: fixed;
+			top: 0;
+			left: 0;
+			width: 100%;
+			height: 100%;
+			background-color: rgba(255,255,255,0.8);
+			z-index: 999;
+		}
 
-	<body></body>
+		.loader {
+			width: 38vh;
+			height: 38vh;
+			border: 15px solid #00D67A;
+			border-bottom-color: transparent;
+			border-radius: 50%;
+			display: inline-block;
+			box-sizing: border-box;
+			animation: rotation 1s linear infinite;
+			z-index:1000;
+		}
+			@keyframes rotation {
+			0% {
+				transform: rotate(0deg);
+			}
+			100% {
+				transform: rotate(360deg);
+			}
+		} 
+	</style>
+
+	<body class="bg-white flex justify-center items-center min-h-screen">
+		<main class="flex gap-40">
+			<canvas id="game-board" class="bg-black "></canvas>
+			<aside>
+				<h1 id="room-id" class="text-4xl text-green-500 font-bold text-center">1번 방</h1>
+				<div class="flex flex-col justify-start text-green-500 text-3xl gap-10 mt-10">
+					<div>이름</div>
+					<div id="high-score">최고 점수 : 0</div>
+					<div id="score">점수 : 0</div>
+					<div id="time">남은 시간 : 30초</div>
+				</div>
+				<div class="flex flex-col justify-start text-blue-500 text-3xl gap-10 mt-[50px]">
+					<div>상대 이름</div>
+					<div>점수 : 0</div>
+				</div>
+			</aside>
+		</main>
+		<div id="loading-screen">
+			<div class="overlay"></div>
+			<div class="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[1000]">
+				 <span id="loader" class="loader"></span>
+			</div>
+			<div id="countdown" class="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 
+					text-black text-[300px] hidden z-1000 rotate-14">
+			</div>
+		</div>
+
+		<script>
+			const COLS = 10;
+			const ROWS = 15;
+			const BLOCK_SIZE = window.innerHeight * 0.06;
+
+			const KEY = Object.freeze({
+				LEFT: 37,
+				RIGHT: 39,
+				DOWN: 40,
+				UP: 38,
+				SPACE: 32
+			});
+
+			const MOVES = {
+				[KEY.LEFT]: { dx: -1, dy: 0 },
+				[KEY.RIGHT]: { dx: 1, dy: 0 },
+				[KEY.DOWN]: { dx: 0, dy: 1 }
+			};
+
+			const COLORS = ['cyan', 'blue', 'orange', 'yellow', 'green', 'purple', 'red'];
+
+			const BLOCK_SHAPES = [
+				{ blocks: [[-1, 0], [0, 0], [1, 0], [2, 0]], center: [0, 0] },
+				{ blocks: [[-1, 0], [0, 0], [1, 0], [1, -1]], center: [0, 0] },
+				{ blocks: [[-1, 0], [0, 0], [1, 0], [1, 1]], center: [0, 0] },
+				{ blocks: [[0, 0], [1, 0], [0, 1], [1, 1]], center: null },
+				{ blocks: [[-1, 0], [0, 0], [0, 1], [1, 1]], center: [0, 0] },
+				{ blocks: [[-1, 0], [0, 0], [1, 0], [0, 1]], center: [0, 0] },
+				{ blocks: [[-1, 1], [0, 1], [0, 0], [1, 0]], center: [0, 0] }
+			];
+
+			const game = {
+				canvas: document.getElementById('game-board'),
+				ctx: null,
+				grid: [],
+				current: null,
+				over: false
+			};
+
+			const time = {
+				start: 0,
+				elapsed: 0,
+				interval: 1000,
+				remaining: 30,
+				lastTick: 0
+			};
+
+			let score = 0;
+
+			function gameStartCountdown() {
+				const loader = document.querySelector('#loader')
+				loader.remove()
+
+				const countdownEl = document.getElementById('countdown');
+				const loadingScreen = document.getElementById('loading-screen');
+				let count = 5;
+				countdownEl.classList.remove('hidden');
+				countdownEl.textContent = count;
+
+				const countdownInterval = setInterval(() => {
+					count--;
+					if (count > 0) {
+					countdownEl.textContent = count;
+					} else if (count === 0) {
+					countdownEl.textContent = 'GO!';
+					} else {
+					clearInterval(countdownInterval);
+					loadingScreen.remove();
+					startGame();
+					}
+				}, 1000);
+			}
+
+			function initializeCanvas() {
+				game.canvas.width = COLS * BLOCK_SIZE;
+				game.canvas.height = ROWS * BLOCK_SIZE;
+				game.ctx = game.canvas.getContext('2d');
+				game.ctx.scale(BLOCK_SIZE, BLOCK_SIZE);
+			}
+
+			function initializeBoard() {
+				return Array.from({ length: ROWS }, () => Array(COLS).fill(0));
+			}
+
+			function updateTime() {
+				document.getElementById('time').textContent = `남은 시간: ${time.remaining}sec`;
+			}
+
+			function startGame() {
+				game.grid = initializeBoard();
+				game.current = generateBlock();
+				game.over = false;
+				score = 0;
+				updateScore();
+				time.start = performance.now();
+				time.remaining = 30;
+				time.lastTick = 0;
+				updateTime();
+				animate();
+				render();
+			}
+
+
+			function render() {
+				clear();
+				drawGrid();
+				drawFixedBlocks();
+				if (game.current) drawCurrentBlock();
+				if (game.over) drawGameOver();
+			}
+
+			function clear() {
+				game.ctx.clearRect(0, 0, COLS, ROWS);
+			}
+
+			function drawGrid() {
+				const ctx = game.ctx;
+				ctx.strokeStyle = '#444';
+				ctx.lineWidth = 0.05;
+				for (let r = 0; r <= ROWS; r++) {
+					ctx.beginPath();
+					ctx.moveTo(0, r);
+					ctx.lineTo(COLS, r);
+					ctx.stroke();
+				}
+				for (let c = 0; c <= COLS; c++) {
+					ctx.beginPath();
+					ctx.moveTo(c, 0);
+					ctx.lineTo(c, ROWS);
+					ctx.stroke();
+				}
+			}
+
+			function drawFixedBlocks() {
+				const ctx = game.ctx;
+				for (let y = 0; y < ROWS; y++) {
+					for (let x = 0; x < COLS; x++) {
+					const cell = game.grid[y][x];
+					if (cell !== 0) {
+						ctx.fillStyle = COLORS[cell - 1];
+						ctx.fillRect(x, y, 1, 1);
+					}
+					}
+				}
+			}
+
+			function drawCurrentBlock() {
+				const ctx = game.ctx;
+				const block = game.current;
+				ctx.fillStyle = block.color;
+				block.blocks.forEach(([dx, dy]) => {
+					ctx.fillRect(block.x + dx, block.y + dy, 1, 1);
+				});
+			}
+
+			function drawGameOver() {
+				const ctx = game.ctx;
+				ctx.fillStyle = 'white';
+				ctx.font = '1.2px Arial';
+				ctx.textAlign = 'center';
+				ctx.fillText('GAME OVER', COLS / 2, ROWS / 2);
+			}
+
+			function generateBlock() {
+			const index = Math.floor(Math.random() * BLOCK_SHAPES.length);
+			const { blocks, center } = BLOCK_SHAPES[index];
+			const color = COLORS[index];
+			const minDy = Math.min(...blocks.map(([_, dy]) => dy));
+
+			const newBlock = {
+				x: 4,
+				y: -minDy,
+				color,
+				blocks,
+				center
+			};
+
+			if (isColliding(game.grid, newBlock, newBlock.x, newBlock.y)) {
+				game.over = true;
+			}
+
+			return newBlock;
+			}
+
+			function move(dx, dy) {
+			if (game.over) return;
+			const { current, grid } = game;
+			const newX = current.x + dx;
+			const newY = current.y + dy;
+
+			if (!isColliding(grid, current, newX, newY)) {
+				current.x = newX;
+				current.y = newY;
+				render();
+			} else if (dy === 1) {
+				const lines = placeBlock();
+				addScore(lines);
+				game.current = generateBlock();
+				render();
+			}
+			}
+
+			function rotate() {
+			if (game.over) return;
+			const { current, grid } = game;
+			if (!current.center) return;
+
+			const rotated = current.blocks.map(([x, y]) => {
+				const [cx, cy] = current.center;
+				const relX = x - cx;
+				const relY = y - cy;
+				return [-relY + cx, relX + cy];
+			});
+
+			if (!isColliding(grid, current, current.x, current.y, rotated, true)) {
+				current.blocks = rotated;
+				render();
+			}
+			}
+
+			function hardDrop() {
+			if (game.over) return;
+			const block = game.current;
+			while (!isColliding(game.grid, block, block.x, block.y + 1)) {
+				block.y++;
+			}
+			const lines = placeBlock();
+			addScore(lines, true);
+			game.current = generateBlock();
+			render();
+			}
+
+			function placeBlock() {
+			const { grid, current } = game;
+			const colorIndex = COLORS.indexOf(current.color) + 1;
+
+			current.blocks.forEach(([dx, dy]) => {
+				const x = current.x + dx;
+				const y = current.y + dy;
+				if (y >= 0) grid[y][x] = colorIndex;
+			});
+
+			const linesCleared = clearLines();
+			return linesCleared;
+			}
+
+			function isColliding(grid, block, offsetX, offsetY, override = null, strict = false) {
+			const cells = override || block.blocks;
+			return cells.some(([dx, dy]) => {
+				const x = offsetX + dx;
+				const y = offsetY + dy;
+				if (x < 0 || x >= COLS || y >= ROWS || (strict && y < 0)) return true;
+				return y >= 0 && grid[y][x] !== 0;
+			});
+			}
+
+			function clearLines() {
+				let cleared = 0;
+				for (let y = ROWS - 1; y >= 0; y--) {
+					if (game.grid[y].every(cell => cell !== 0)) {
+						game.grid.splice(y, 1);
+						game.grid.unshift(Array(COLS).fill(0));
+						y++;
+						cleared++;
+					}
+				}
+				return cleared;
+			}
+
+			function addScore(lines, isHardDrop = false) {
+				const base = lines === 1 ? 100 : lines === 2 ? 300 : lines === 3 ? 500 : lines >= 4 ? 800 : 0;
+				const gained = isHardDrop ? base * 2 : base;
+				score += gained;
+				updateScore();
+			}
+
+			function updateScore() {
+				document.getElementById('score').textContent = `점수: ${score}`;
+			}
+
+			function animate(now = 0) {
+				if (game.over) {
+					render();
+					return;
+			}
+
+			time.elapsed = now - time.start;
+
+			if (time.elapsed > time.interval) {
+				time.start = now;
+				move(0, 1);
+			}
+
+			if (Math.floor(now / 1000) !== Math.floor(time.lastTick / 1000)) {
+				time.remaining--;
+				time.lastTick = now;
+				updateTime();
+
+				if (time.remaining <= 0) {
+					game.over = true;
+					render();
+					return;
+				}
+			}
+
+			render();
+				requestAnimationFrame(animate);
+			}
+
+			function onKeyDown(e) {
+				const moveAction = MOVES[e.keyCode];
+				if (moveAction) {
+					e.preventDefault();
+					move(moveAction.dx, moveAction.dy);
+				} else if (e.keyCode === KEY.UP) {
+					e.preventDefault();
+					rotate();
+				} else if (e.keyCode === KEY.SPACE) {
+					e.preventDefault();
+					hardDrop();
+				}
+			}
+
+			initializeCanvas();
+			drawGrid();
+			document.addEventListener('keydown', onKeyDown);
+
+			const socket = io('http://localhost:8000', {
+				withCredentials: true
+			});
+			const room_id = sessionStorage.getItem('room_id');
+			const roomId = document.getElementById('room-id')
+			roomId.textContent = room_id
+
+			socket.on('connect', function() {
+				console.log('멀티페이지 소켓 연결');
+			});
+			socket.on('game:start', function() {
+				gameStartCountdown();
+			})
+			socket.emit('room:join',{ room_id });
+
+
+		</script>
+	</body>
 </html>
