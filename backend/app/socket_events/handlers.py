@@ -228,30 +228,46 @@ def register_game_events(socketio):
     def handle_game_end(data):
         """게임 종료 처리 (쿠키 기반 JWT 인증) - 플레이어가 게임 완료 시 호출"""
         try:
+            current_app.logger.info(f"Game end request received: {data}")
+            
             # 쿠키에서 JWT 토큰으로 사용자 인증
             user, error = get_current_user_from_socket()
             if error:
+                current_app.logger.error(f"Authentication failed in game:end: {error}")
                 emit('error', {'type': 'AUTH_ERROR', 'message': error})
                 return
+            
+            current_app.logger.info(f"User {user.user_id} requesting game end")
+            
             room_id = data.get('room_id')
             final_score = data.get('score', 0)
 
             # 방 조회
             room = GameRoom.find_by_room_id(room_id)
             if not room:
+                current_app.logger.error(f"Room not found: {room_id}")
                 emit('error', {'type': 'ROOM_NOT_FOUND', 'message': '존재하지 않는 방입니다'})
                 return
             
+            current_app.logger.info(f"Room {room_id} found with {len(room.participants)} participants")
+            
             # 최종 점수 업데이트
             room.update_participant_score(user.user_id, final_score)
+            current_app.logger.info(f"Updated score for user {user.user_id}: {final_score}")
+            
             # 모든 플레이어가 게임을 마쳤는지 확인
             all_finished = all(p.get('score', 0) > 0 for p in room.participants)
+            current_app.logger.info(f"All players finished: {all_finished}")
+            
             result = {
                 'room_id': room_id
             }
             
             if all_finished:
+                current_app.logger.info(f"All players finished game in room {room_id}")
+                
                 scores = {p['user_id']: p.get('score', 0) for p in room.participants}
+                current_app.logger.info(f"Final scores: {scores}")
                 
                 # 승부 결정 (점수 비교)
                 max_score = max(scores.values())
@@ -260,8 +276,11 @@ def register_game_events(socketio):
                 is_draw = len(winners) > 1
                 winner_user_id = None if is_draw else winners[0]
                 
+                current_app.logger.info(f"Game result - max_score: {max_score}, winners: {winners}, is_draw: {is_draw}")
+                
                 # 게임 종료
                 room.end_game(scores)
+                current_app.logger.info(f"Room {room_id} game ended")
                 
                 # 게임 기록 저장
                 from app.models.game_record import GameRecord
@@ -272,6 +291,7 @@ def register_game_events(socketio):
                 GameRecord.create_multiplayer_record(
                     room_id, players_data, scores, winner_user_id, 60
                 )
+                current_app.logger.info(f"Game record saved for room {room_id}")
                 
                 # 사용자 통계 업데이트
                 for participant in room.participants:
@@ -285,6 +305,7 @@ def register_game_events(socketio):
                             score_gained=participant.get('score', 0),
                             game_result=game_result
                         )
+                        current_app.logger.info(f"Updated stats for user {participant['user_id']}: {game_result}")
                 
                 # 결과 메시지 설정
                 if is_draw:
@@ -293,6 +314,7 @@ def register_game_events(socketio):
                         'final_scores': scores,
                         'is_draw': True
                     })
+                    current_app.logger.info(f"Game ended in draw for room {room_id}")
                 else:
                     result.update({
                         'status': 'finished',
@@ -300,15 +322,20 @@ def register_game_events(socketio):
                         'winner': winner_user_id,
                         'is_draw': False
                     })
+                    current_app.logger.info(f"Game ended with winner {winner_user_id} for room {room_id}")
+                
                 # 게임 종료 결과를 방 내 모든 사용자에게 브로드캐스트
                 socketio.emit('game:end', result, room=room_id)
+                current_app.logger.info(f"Game end result broadcasted to room {room_id}")
             else:
+                current_app.logger.info(f"Waiting for other players to finish in room {room_id}")
                 # waiting 상태를 game:end 응답에 포함 (별도 이벤트 emit하지 않음)
                 result.update({
                     'message': '상대방이 게임을 완료하기를 기다리는 중...',
                     'status': 'waiting',
                 })
                 emit('game:end', result)
+                current_app.logger.info(f"Waiting response sent to user {user.user_id}")
         except Exception as e:
             current_app.logger.error(f"Game end error: {str(e)}")
             emit('error', {'type': 'SERVER_ERROR', 'message': '게임 종료 처리 중 오류가 발생했습니다'})
