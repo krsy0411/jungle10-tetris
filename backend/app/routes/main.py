@@ -154,7 +154,9 @@ def solo():
     if not user:
         flash('사용자를 찾을 수 없습니다.', 'error')
         return redirect(url_for('main.login'))
-    return render_template('solo.html', user_name=user.name)
+    # 사용자 최고 점수 조회 (solo_high_score)
+    high_score = user.solo_high_score if hasattr(user, 'solo_high_score') else 0
+    return render_template('solo.html', user_name=user.name, user_high_score=high_score)
 
 @main_bp.route('/multi')
 @jwt_required()
@@ -167,7 +169,9 @@ def multi():
         flash('사용자를 찾을 수 없습니다.', 'error')
         return redirect(url_for('main.login'))
     
-    return render_template('multi.html', user_name=user.name)
+    # 사용자 최고 점수 조회 (solo_high_score)
+    high_score = user.solo_high_score if hasattr(user, 'solo_high_score') else 0
+    return render_template('multi.html', user_name=user.name, user_high_score=high_score)
 
 @main_bp.route('/ranking')
 @jwt_required()
