@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="ko">
+	<head>
+		<!-- Required meta tags -->
+		<meta charset="utf-8" />
+		<meta
+			name="viewport"
+			content="width=device-width, initial-scale=1, shrink-to-fit=no"
+		/>
+		<script src="https://cdn.tailwindcss.com"></script>
+		<!-- 구글폰트 -->
+		<link
+			href="https://fonts.googleapis.com/css?family=Stylish&display=swap"
+			rel="stylesheet"
+		/>
+
+		<!-- Socket.IO 클라이언트 -->
+		<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+
+		<title>정글 테트리스</title>
+	</head>
+
+	<body>
+		<main class="flex flex-col items-center" style="font-family: Inter">
+			<h1
+				class="flex flex-col justify-center text-center text-green-400 font-bold text-8xl flex-shrink-0 pt-20"
+			>
+				랭킹
+			</h1>
+			<section class="flex items-center gap-16 pt-6">
+				<article class="flex flex-col items-center">
+					<h2 class="text-green-400 font-bold text-3xl pb-2">
+						<span class="text-green-700">최다 승리</span> 랭킹
+					</h2>
+					<ul
+						class="h-96 w-72 bg-green-400 rounded-3xl overflow-y-auto font-bold text-xl space-y-4 py-6"
+					>
+						{% for user in win_ranking %}
+						<li
+							class="text-center {% if loop.index == 1 %}text-white{% elif loop.index == 2 %}text-blue-400{% elif loop.index == 3 %}text-red-400{% else %}text-black{% endif %}"
+						>
+							{{ user.name }}: {{ user.wins }}승
+						</li>
+						{% endfor %}
+					</ul>
+					{% if current_user_wins %}
+					<p class="font-bold text-xl text-center pt-5">
+						{{ current_user.name }}:
+						<span class="text-green-400"
+							>{{ "{:,}".format(current_user_wins) }}</span
+						>승
+					</p>
+					{% endif %}
+				</article>
+				<article class="flex flex-col items-center">
+					<h2 class="text-green-400 font-bold text-3xl pb-2">
+						<span class="text-green-700">최고 점수</span> 랭킹
+					</h2>
+					<ul
+						class="h-96 w-72 bg-green-400 rounded-3xl overflow-y-auto font-bold text-xl space-y-4 py-6"
+					>
+						{% for user in score_ranking %}
+						<li
+							class="text-center {% if loop.index == 1 %}text-white{% elif loop.index == 2 %}text-blue-400{% elif loop.index == 3 %}text-red-400{% else %}text-black{% endif %}"
+						>
+							{{ user.name }}: {{ "{:,}".format(user.score) }}점
+						</li>
+						{% endfor %}
+					</ul>
+					{% if current_user_score %}
+					<p class="font-bold text-xl text-center pt-5">
+						{{ current_user.name }}:
+						<span class="text-green-400"
+							>{{ "{:,}".format(current_user_score) }}</span
+						>점
+					</p>
+					{% endif %}
+				</article>
+			</section>
+		</main>
+	</body>
+</html>
