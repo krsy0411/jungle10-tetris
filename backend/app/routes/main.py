@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify, current_app, make_response, make_response
-from flask_jwt_extended import jwt_required, get_jwt_identity, create_access_token, create_refresh_token, set_access_cookies, set_refresh_cookies, unset_jwt_cookies, set_access_cookies, set_refresh_cookies, unset_jwt_cookies
+from flask_jwt_extended import jwt_required, get_jwt_identity, create_access_token, create_refresh_token, decode_token, set_access_cookies, set_refresh_cookies, unset_jwt_cookies, set_access_cookies, set_refresh_cookies, unset_jwt_cookies
 from app.models.user import User
 from app.models.game_room import GameRoom
 from app.models.game_record import GameRecord
@@ -225,6 +225,42 @@ def ranking():
 # API 엔드포인트들 (JWT 기반 인증)
 # ============================================================================
 
+# 리프레시 토큰을 통한 액세스 토큰 재발급 API
+@main_bp.route('/api/auth/refresh', methods=['POST'])
+def api_refresh_token():
+    """리프레시 토큰으로 액세스 토큰 재발급 API"""
+    try:
+        data = request.get_json() or {}
+        refresh_token = data.get('refresh_token')
+        if not refresh_token:
+            return jsonify({'error': '리프레시 토큰이 필요합니다'}), 400
+
+        try:
+            decoded = decode_token(refresh_token)
+        except Exception:
+            return jsonify({'error': '유효하지 않은 토큰입니다'}), 401
+
+        if decoded.get('type') != 'refresh':
+            return jsonify({'error': '리프레시 토큰이 아닙니다'}), 401
+
+        user_id = decoded.get('sub')
+        if not user_id:
+            return jsonify({'error': '토큰에 사용자 정보가 없습니다'}), 401
+
+        user = User.find_by_user_id(user_id)
+        if not user:
+            return jsonify({'error': '사용자를 찾을 수 없습니다'}), 404
+
+        # (선택) refresh_token_issued_at 등 추가 검증 필요시 구현
+
+        # 새 액세스 토큰 발급
+        access_token = create_access_token(identity=user_id)
+
+        return jsonify({'access_token': access_token}), 200
+    except Exception as e:
+        current_app.logger.error(f"Refresh token error: {str(e)}")
+        return jsonify({'error': '토큰 갱신 중 오류가 발생했습니다'}), 500
+
 # 방 생성 API
 @main_bp.route('/api/rooms/create', methods=['POST'])
 @jwt_required()
@@ -237,17 +273,6 @@ def api_create_room():
         user = User.find_by_user_id(user_id)
         if not user:
             return jsonify({'error': '사용자를 찾을 수 없습니다'}), 404
-        
-        # 이미 생성한 방이 있는지 확인
-        from app.utils.database import get_db
-        db = get_db()
-        existing_room = db.game_rooms.find_one({
-            'host_user_id': user_id,
-            'status': {'$in': ['waiting', 'playing']}
-        })
-        
-        if existing_room:
-            return jsonify({'error': '이미 생성한 방이 있습니다'}), 400
         
         # 새 방 생성
         room = GameRoom(

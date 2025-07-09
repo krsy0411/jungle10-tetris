@@ -12,8 +12,8 @@ class Config:
     
     # JWT 설정
     JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY', 'jwt-secret-key-change-this')
-    JWT_ACCESS_TOKEN_EXPIRES = timedelta(minutes=15)  # 15분
-    JWT_REFRESH_TOKEN_EXPIRES = timedelta(hours=3)    # 3시간
+    JWT_ACCESS_TOKEN_EXPIRES = timedelta(hours=2)  # 2시간
+    JWT_REFRESH_TOKEN_EXPIRES = timedelta(days=7)    # 7일
     JWT_ALGORITHM = 'HS256'
     
     # JWT 쿠키 설정

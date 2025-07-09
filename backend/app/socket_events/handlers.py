@@ -36,7 +36,7 @@ def get_current_user_from_socket():
         # 쿠키에서 JWT 토큰 추출
         token = None
         if hasattr(request, 'cookies'):
-            token = request.cookies.get('access_token_cookie')
+            token = request.cookies.get('access_token')
         
         if not token:
             return None, "인증 토큰이 필요합니다"
@@ -65,9 +65,9 @@ def register_connection_events(socketio):
             # 쿠키에서 JWT 토큰 추출
             token = None
             
-            # request.cookies에서 access_token_cookie 추출
+            # request.cookies에서 access_token 추출
             if hasattr(request, 'cookies'):
-                token = request.cookies.get('access_token_cookie')
+                token = request.cookies.get('access_token')
             
             # 쿠키에서 토큰을 찾지 못한 경우 auth 파라미터 확인 (fallback)
             if not token and auth and isinstance(auth, dict) and 'token' in auth:
@@ -232,59 +232,46 @@ def register_game_events(socketio):
         try:
             # 쿠키에서 JWT 토큰으로 사용자 인증
             user, error = get_current_user_from_socket()
-            
             if error:
                 emit('error', {'type': 'AUTH_ERROR', 'message': error})
                 return
-            
             room_id = data.get('room_id')
             final_score = data.get('score', 0)
-            
             if not room_id:
                 emit('error', {'type': 'VALIDATION_ERROR', 'message': '방 번호가 필요합니다'})
                 return
-            
             if not isinstance(final_score, int) or final_score < 0:
                 emit('error', {'type': 'VALIDATION_ERROR', 'message': '유효하지 않은 점수입니다'})
                 return
-            
             # 방 조회
             room = GameRoom.find_by_room_id(room_id)
             if not room:
                 emit('error', {'type': 'ROOM_NOT_FOUND', 'message': '존재하지 않는 방입니다'})
                 return
-            
             # 최종 점수 업데이트
             room.update_participant_score(user.user_id, final_score)
-            
             # 모든 플레이어가 게임을 마쳤는지 확인
             all_finished = all(p.get('score', 0) > 0 for p in room.participants)
-
             result = {
                 'room_id': room_id,
                 'your_score': final_score,
                 'all_finished': all_finished
             }
-
             if all_finished:
                 # 승자 결정 (점수가 가장 높은 플레이어)
                 winner = max(room.participants, key=lambda p: p.get('score', 0))
                 scores = {p['user_id']: p.get('score', 0) for p in room.participants}
-
                 # 게임 종료
                 room.end_game(scores)
-
                 # 게임 기록 저장
                 from app.models.game_record import GameRecord
                 players_data = [
                     {'user_id': p['user_id'], 'name': p['name'], 'score': p.get('score', 0)}
                     for p in room.participants
                 ]
-
                 GameRecord.create_multiplayer_record(
                     room_id, players_data, scores, winner['user_id'], 60
                 )
-
                 # 사용자 통계 업데이트
                 for participant in room.participants:
                     participant_user = User.find_by_user_id(participant['user_id'])
@@ -295,23 +282,21 @@ def register_game_events(socketio):
                             score_gained=participant.get('score', 0),
                             game_result=game_result
                         )
-
                 result.update({
                     'message': '게임이 종료되었습니다',
+                    'status': 'finished',
                     'final_scores': scores,
                     'winner': winner['name']
                 })
-
                 # 게임 종료 결과를 방 내 모든 사용자에게 브로드캐스트
                 socketio.emit('game:end', result, room=room_id)
             else:
-                # 대기 중 알림 (상대방이 아직 완료하지 않음)
-                socketio.emit('game:waiting', {
-                    'room_id': room_id,
+                # waiting 상태를 game:end 응답에 포함 (별도 이벤트 emit하지 않음)
+                result.update({
                     'message': '상대방이 게임을 완료하기를 기다리는 중...',
-                    'your_score': final_score
-                }, room=request.sid)  # 현재 사용자에게만 전송
-            
+                    'status': 'waiting',
+                })
+                emit('game:end', result)
         except Exception as e:
             current_app.logger.error(f"Game end error: {str(e)}")
             emit('error', {'type': 'SERVER_ERROR', 'message': '게임 종료 처리 중 오류가 발생했습니다'})
