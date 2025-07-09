@@ -1,5 +1,5 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify, current_app, make_response
-from flask_jwt_extended import jwt_required, get_jwt_identity, create_access_token, create_refresh_token, set_access_cookies, set_refresh_cookies, unset_jwt_cookies
+from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify, current_app, make_response, make_response
+from flask_jwt_extended import jwt_required, get_jwt_identity, create_access_token, create_refresh_token, set_access_cookies, set_refresh_cookies, unset_jwt_cookies, set_access_cookies, set_refresh_cookies, unset_jwt_cookies
 from app.models.user import User
 from app.models.game_room import GameRoom
 from app.models.game_record import GameRecord
@@ -69,14 +69,12 @@ def register():
     """회원가입 페이지 (SSR)"""
     if request.method == 'GET':
         return render_template('register.html')
-
     # POST: 폼 처리
     try:
         user_id = request.form.get('user_id', '').strip()
         name = request.form.get('name', '').strip()
         password = request.form.get('password', '')
         password_confirm = request.form.get('password_confirm', '')
-
         # 유효성 검증
         is_valid_id, id_error = validate_user_id(user_id)
         if not is_valid_id:
@@ -156,7 +154,9 @@ def solo():
     if not user:
         flash('사용자를 찾을 수 없습니다.', 'error')
         return redirect(url_for('main.login'))
-    return render_template('solo.html', user_name=user.name)
+    # 사용자 최고 점수 조회 (solo_high_score)
+    high_score = user.solo_high_score if hasattr(user, 'solo_high_score') else 0
+    return render_template('solo.html', user_name=user.name, user_high_score=high_score)
 
 @main_bp.route('/multi')
 @jwt_required()
@@ -169,7 +169,9 @@ def multi():
         flash('사용자를 찾을 수 없습니다.', 'error')
         return redirect(url_for('main.login'))
     
-    return render_template('multi.html', user_name=user.name)
+    # 사용자 최고 점수 조회 (solo_high_score)
+    high_score = user.solo_high_score if hasattr(user, 'solo_high_score') else 0
+    return render_template('multi.html', user_name=user.name, user_high_score=high_score)
 
 @main_bp.route('/ranking')
 @jwt_required()
@@ -211,7 +213,6 @@ def ranking():
     current_user = {'name': user.name}
     current_user_wins = user.wins  # 실제 사용자의 승리 횟수
     current_user_score = user.solo_high_score  # 실제 사용자의 최고 점수
-
     return render_template('ranking.html', 
                          win_ranking=win_ranking,
                          score_ranking=score_ranking,

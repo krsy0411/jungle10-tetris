@@ -73,9 +73,77 @@
 				</a>
 			</footer>
 		</main>
-
+		<div id="modal" class="hidden">
+			<div
+				class="modal-bg fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50"
+			>
+				<div
+					class="modal-container relative bg-white rounded-lg shadow-lg p-8 w-[681px] h-[621px] flex flex-col items-center justify-center"
+				>
+					<div id="modal-content"></div>
+				</div>
+			</div>
+		</div>
 		<script>
-			// 메인 페이지 관련 JavaScript는 추후 작성 예정
+			function openModal(contentHTML) {
+				const modal = document.getElementById("modal");
+				const modalContent = document.getElementById("modal-content");
+				const modalBg = document.querySelector(".modal-bg");
+
+				modalContent.innerHTML = contentHTML;
+				const closeBtn = document.getElementById("close-btn");
+				modal.classList.remove("hidden");
+				modalBg.addEventListener("click", (e) => {
+					if (e.target === modalBg) modal.classList.add("hidden");
+				});
+				closeBtn.addEventListener("click", (e) => {
+					if (e.target.closest("#close-btn")) modal.classList.add("hidden");
+				});
+			}
+
+			document.getElementById("keyGuideBtn").addEventListener("click", () => {
+				openModal(`
+					<div class="flex flex-col gap-[70px]">
+						<div class="text-[32px] font-bold text-green-500 flex gap-2 justify-center items-center">블록 이동 :
+							<div class="flex text w-[45px] h-[45px] bg-gray-400 font-bold text-black items-center justify-center">←</div>
+							<div class="flex text w-[45px] h-[45px] bg-gray-400 font-bold text-black items-center justify-center">↓</div>
+							<div class="flex text w-[45px] h-[45px] bg-gray-400 font-bold text-black items-center justify-center">→</div>
+							<div class="flex text w-[45px] h-[45px] bg-gray-400 font-bold text-black items-center justify-center">A </div>
+							<div class="flex text w-[45px] h-[45px] bg-gray-400 font-bold text-black items-center justify-center">S </div>
+							<div class="flex text w-[45px] h-[45px] bg-gray-400 font-bold text-black items-center justify-center">D </div>
+						</div>
+						<div class="text-[32px] font-bold text-green-500 text-center">아래로 한번에 이동 :
+							<span class="text w-[45px] h-[45px] bg-gray-400 font-bold text-black px-5 py-1">SPACE BAR </span>
+						</div>
+						<div class="text-[32px] font-bold text-green-500 text-center flex justify-center items-center gap-2">블록 회전 :
+							<span class="flex text w-[45px] h-[45px] bg-gray-400 font-bold text-black items-center justify-center">↑</span>
+							<span class="flex text w-[45px] h-[45px] bg-gray-400 font-bold text-black items-center justify-center">W </span>
+						</div>
+						<div id='close-btn' class="absolute top-5 right-5">
+							<svg xmlns="http://www.w3.org/2000/svg" height="80px" viewBox="0 -960 960 960" width="80px" fill="#000000"><path d="m256-200-56-56 224-224-224-224 56-56 224 224 224-224 56 56-224 224 224 224-56 56-224-224-224 224Z"/></svg>
+						</div>
+					</div>
+				`);
+			});
+
+			document.getElementById("findRoomsBtn").addEventListener("click", () => {
+				openModal(`
+					<div class="flex flex-col gap-[108px] items-center">
+						<div class="relative w-full">
+							<input id="room" type="text" placeholder="" class="peer w-[517px] h-[106px] pl-[24px] border-[5px] border-gray-300 rounded-[20px] text-[36px] focus:outline-none focus:border-green-500" />
+							<label for="room" class="absolute left-6 text-green-500 font-bold transition-all duration-200 leading-[48px] peer-placeholder-shown:top-8 peer-placeholder-shown:text-[48px] peer-focus:top-2 peer-focus:text-sm peer-focus:text-green-500">
+								방 번호
+							</label>
+						</div>
+						<button class="mt-[22px] w-[259px] h-[92px] py-3 bg-green-500 text-white text-[40px] font-bold rounded-[20px] hover:bg-green-600 transition">
+							입장 버튼
+						</button>
+						<div id='close-btn' class="absolute top-5 right-5">
+							<svg xmlns="http://www.w3.org/2000/svg" height="80px" viewBox="0 -960 960 960" width="80px" fill="#000000"><path d="m256-200-56-56 224-224-224-224 56-56 224 224 224-224 56 56-224 224 224 224-56 56-224-224-224 224Z"/></svg>
+						</div>
+					</div>
+				`);
+			});
 		</script>
 	</body>
 </html>
