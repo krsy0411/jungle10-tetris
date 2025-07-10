@@ -47,8 +47,6 @@ servers:
     variables:
       socket_url:
         default: http://localhost:8000
-  - url: https://api.jungletetris.com
-    description: 프로덕션 서버
 
 security:
   - BearerAuth: []

@@ -132,7 +132,7 @@ def logout():
 
 @main_bp.route('/main')
 def main():    
-    return render_template('main.html', socket_url=current_app.config['SOCKET_URL'])
+    return render_template('main.html' , socket_url=current_app.config['SOCKET_URL'])
 
 @main_bp.route('/main.html')
 def main_html_redirect():
