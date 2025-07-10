@@ -148,17 +148,19 @@
 			async function createRoom() {
 				try {
 					const res = await fetch('/api/rooms/create', {
-					method: "POST",
-					headers: {
-						'Content-Type': 'application/json',
-						'credentials': 'include'
-					}
-				})
+						method: "POST",
+						headers: {
+							'Content-Type': 'application/json',
+							'credentials': 'include'
+						}
+					})
 				
-				const data = await res.json();
+					const data = await res.json();
 
-				if(data.room_id) sessionStorage.setItem("room_id", data.room_id);
+					if(data.room_id) sessionStorage.setItem("room_id", data.room_id);
 
+				} catch (err) {
+					console.warn(err);
 				}		
 			}
 			const createRoomBtn = document.getElementById("createRoomBtn");
