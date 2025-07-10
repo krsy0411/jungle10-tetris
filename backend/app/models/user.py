@@ -116,8 +116,13 @@ class User:
         if game_result == 'win':
             self.wins += 1
         
+        # 솔로 점수 업데이트
         if solo_score and solo_score > self.solo_high_score:
             self.solo_high_score = solo_score
+        
+        # 멀티플레이어 점수도 최고 점수 갱신에 반영
+        if score_gained > 0 and score_gained > self.solo_high_score:
+            self.solo_high_score = score_gained
         
         self.save()
 
