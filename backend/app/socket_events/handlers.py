@@ -238,7 +238,7 @@ def register_game_events(socketio):
             if not room:
                 emit('error', {'type': 'ROOM_NOT_FOUND', 'message': '존재하지 않는 방입니다'})
                 return
-                        # 최종 점수 및 finished 상태 업데이트
+            # 최종 점수 및 finished 상태 업데이트
             for participant in room.participants:
                 if participant['user_id'] == user.user_id:
                     participant['score'] = final_score
@@ -270,11 +270,15 @@ def register_game_events(socketio):
                     room_id, players_data, scores, winner['user_id'], 60
                 )
                 # 사용자 통계 업데이트
+                is_draw = len([p for p in room.participants if p.get('score', 0) == winner.get('score', 0)]) > 1
                 for participant in room.participants:
                     participant_user = User.find_by_user_id(participant['user_id'])
                     if participant_user:
-                        is_winner = participant['user_id'] == winner['user_id']
-                        game_result = 'win' if is_winner else 'loss'
+                        if is_draw:
+                            game_result = 'draw'
+                        else:
+                            is_winner = participant['user_id'] == winner['user_id']
+                            game_result = 'win' if is_winner else 'loss'
                         participant_user.update_stats(
                             score_gained=participant.get('score', 0),
                             game_result=game_result
