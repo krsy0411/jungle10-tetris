@@ -28,9 +28,6 @@ class Config:
     # MongoDB 설정
     MONGODB_URI = os.getenv('MONGODB_URI', 'mongodb://localhost:27017/jungle_tetris')
     
-    # CORS 설정
-    CORS_ORIGINS = os.getenv('CORS_ORIGINS', 'http://localhost:3000').split(',')
-    
     # Socket.IO 설정
     SOCKETIO_ASYNC_MODE = 'eventlet'
     
