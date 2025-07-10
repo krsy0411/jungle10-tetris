@@ -48,17 +48,24 @@
 			const BLOCK_SIZE = window.innerHeight * 0.06;
 
 			const KEY = Object.freeze({
-			LEFT: 37,
-			RIGHT: 39,
-			DOWN: 40,
-			UP: 38,
-			SPACE: 32
+				LEFT: 37,
+				RIGHT: 39,
+				DOWN: 40,
+				UP: 38,
+				SPACE: 32,
+				A: 65,
+				D: 68,
+				S: 83,
+				W: 87
 			});
 
 			const MOVES = {
-			[KEY.LEFT]: { dx: -1, dy: 0 },
-			[KEY.RIGHT]: { dx: 1, dy: 0 },
-			[KEY.DOWN]: { dx: 0, dy: 1 }
+				[KEY.LEFT]: { dx: -1, dy: 0 },
+				[KEY.RIGHT]: { dx: 1, dy: 0 },
+				[KEY.DOWN]: { dx: 0, dy: 1 },
+				[KEY.A]: { dx: -1, dy: 0 },
+				[KEY.D]: { dx: 1, dy: 0 },
+				[KEY.S]: { dx: 0, dy: 1 }
 			};
 
 			const COLORS = ['cyan', 'blue', 'orange', 'yellow', 'green', 'purple', 'red'];
@@ -394,7 +401,7 @@
 			if (moveAction) {
 				e.preventDefault();
 				move(moveAction.dx, moveAction.dy);
-			} else if (e.keyCode === KEY.UP) {
+			} else if (e.keyCode === KEY.UP || e.keyCode === KEY.W) {
 				e.preventDefault();
 				rotate();
 			} else if (e.keyCode === KEY.SPACE) {
