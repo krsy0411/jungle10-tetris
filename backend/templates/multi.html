@@ -452,7 +452,7 @@
 				socket.on('game:end', function(data) {
 					const {status} = data
 					if(status === 'waiting') {
-						openModal(score, status, )
+						openModal(score, status, {})
 					} else if(status === 'finished') {
 						openModal(score, status, data)
 					}
@@ -475,7 +475,6 @@
 				const modalContent = document.getElementById("modal-content");
 				const modalBg = document.querySelector(".modal-bg");
 				modal.classList.remove("hidden");
-				const result = data.is_draw ? '무승부' : (data.winner === userId ? '승리' : '패배');
 				
 				if(status === 'waiting') {
 					const html = `
@@ -485,6 +484,7 @@
 					`
 					modalContent.innerHTML = html;
 				} else if(status === 'finished') {
+					const result = data.is_draw ? '무승부' : (data.winner === userId ? '승리' : '패배');
 					const html = `
 						    <div class="flex flex-col justify-center items-center gap-12 text-center">
       							<p class="text-[48px] font-bold text-green-500">${result}</p>
@@ -501,7 +501,7 @@
 							socket.on('room:leave', (data) => {
 								console.log(data)
 							})
-							// window.location.href = 'main.html'
+							window.location.href = 'main.html'
 						})
 					}
 				}

@@ -283,7 +283,8 @@ def register_game_events(socketio):
                     'message': '게임이 종료되었습니다',
                     'status': 'finished',
                     'final_scores': scores,
-                    'winner': winner['name']
+                    'winner': winner['user_id'],  # user_id로 변경
+                    'is_draw': len([p for p in room.participants if p.get('score', 0) == winner.get('score', 0)]) > 1
                 })
                 # 게임 종료 결과를 방 내 모든 사용자에게 브로드캐스트
                 socketio.emit('game:end', result, room=room_id)
