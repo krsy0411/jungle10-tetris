@@ -172,7 +172,7 @@
 				const roomIdInputValue = document.getElementById('room-num').value;
 				if(checkRoomId(roomIdInputValue)) {
 					
-					const socket = io('http://localhost:8000', {
+					const socket = io('{{ socket_url }}', {
 						withCredentials: true
 					});
 					

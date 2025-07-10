@@ -31,6 +31,9 @@ class Config:
     # Socket.IO 설정
     SOCKETIO_ASYNC_MODE = 'eventlet'
     
+    # Socket.IO 클라이언트 URL (프론트엔드에서 사용)
+    SOCKET_URL = os.getenv('SOCKET_URL', 'http://localhost:8000')
+    
     # 서버 설정
     HOST = os.getenv('HOST', '0.0.0.0')
     PORT = int(os.getenv('PORT', 8000))

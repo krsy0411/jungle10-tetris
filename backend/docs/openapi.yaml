@@ -42,10 +42,11 @@ info:
     name: MIT
     url: https://opensource.org/licenses/MIT
 servers:
-  - url: http://localhost:8000
-    description: 개발 서버
-  - url: https://api.jungletetris.com
-    description: 프로덕션 서버
+  - url: "{socket_url}"
+    description: 개발 서버 (환경변수 SOCKET_URL로 설정)
+    variables:
+      socket_url:
+        default: http://localhost:8000
 
 security:
   - BearerAuth: []
