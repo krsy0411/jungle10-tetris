@@ -132,7 +132,7 @@ def logout():
 
 @main_bp.route('/main')
 def main():    
-    return render_template('main.html')
+    return render_template('main.html' , socket_url=current_app.config['SOCKET_URL'])
 
 @main_bp.route('/main.html')
 def main_html_redirect():
@@ -168,7 +168,7 @@ def multi():
     
     # 사용자 최고 점수 조회 (solo_high_score)
     high_score = user.solo_high_score if hasattr(user, 'solo_high_score') else 0
-    return render_template('multi.html', user_name=user.name, user_high_score=high_score)
+    return render_template('multi.html', user_name=user.name, user_high_score=high_score, socket_url=current_app.config['SOCKET_URL'])
 
 @main_bp.route('/multi.html')
 def multi_html_redirect():

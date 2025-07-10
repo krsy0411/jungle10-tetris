@@ -27,7 +27,7 @@
 				<p>{{ user_name }}</p>
 				<p id="high-score">최고 점수 : {{ user_high_score }}</p>
 				<p id="score">점수 : 0</p>
-				<p id="time">남은 시간 : 60sec</p>
+				<p id="time">남은 시간 : 00초</p>
 			</div>
 		</main>
 		<div id="modal" class="hidden">
@@ -110,7 +110,7 @@
 			}
 
 			function updateTime() {
-			document.getElementById('time').textContent = `남은 시간: ${time.remaining}sec`;
+			document.getElementById('time').textContent = `남은 시간: ${time.remaining}초`;
 			}
 
 			async function fetchGameStart() {
