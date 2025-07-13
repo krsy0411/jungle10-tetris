@@ -10,6 +10,33 @@
 | 분류 | 백엔드 | 프론트엔드 | 프론트엔드 |
 | 역할 | 인증, 소켓 통신 설계, 게임 시스템 설계, 배포 | 테트리스, 솔로/멀티 모드, 모달, 소켓 연동 | Jinja 템플릿 작성, QA 및 오류 수정 |
 
+## 🛠️ 기술 스택
+
+### 프론트엔드
+<p style="display:flex; gap:10px">
+    <img src="https://www.vectorlogo.zone/logos/javascript/javascript-icon.svg" alt="JavaScript" width="40px" height="40px">
+    <img src="https://www.vectorlogo.zone/logos/tailwindcss/tailwindcss-icon.svg" alt="TailwindCSS" width="40px" height="40px">
+    <img src="https://www.vectorlogo.zone/logos/socketio/socketio-icon.svg" alt="TailwindCSS" width="40px" height="40px">
+</p>
+
+### 백엔드
+<p style="display:flex; gap:10px">
+    <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/python/python-original.svg" alt="Python" width="40px" height="40px">
+    <img src="https://www.vectorlogo.zone/logos/palletsprojects_flask/palletsprojects_flask-icon~v2.svg" alt="Flask" width="40px" height="40px">
+    <img src="https://www.vectorlogo.zone/logos/socketio/socketio-icon.svg" alt="Socket.IO" width="40px" height="40px">
+    <img src="https://www.vectorlogo.zone/logos/pocoo_jinja/pocoo_jinja-icon.svg" alt="Jinja2" width="40px" height="40px">
+</p>
+
+### 데이터베이스
+<p style="display:flex; gap:10px">
+    <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/mongodb/mongodb-original.svg" alt="MongoDB" width="40px" height="40px">
+</p>
+
+### 배포
+<p style="display:flex; gap:10px">
+    <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/amazonwebservices/amazonwebservices-plain-wordmark.svg" alt="AWS" width="40px" height="40px">
+</p>
+
 ### 7/8(화)
 
 - 무조건 정상적으로 돌아가는게 목표
