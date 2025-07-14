@@ -3,6 +3,9 @@
 크래프톤 정글 10기 | 정글 테트리스
 - [기획 및 발표 피드백](./FEEDBACK.md)
 - [피그마 디자인 작업](https://www.figma.com/design/FxC29DfcYJ9lPCmcHUrRAS/%EC%A0%95%EA%B8%8010%EA%B8%B0-%EB%AF%B8%EB%8B%88%ED%94%8C%EC%A0%9D?node-id=0-1&t=xoCzRPc7qwgFMR0b-1)
+- [기능 요구사항 문서](./backend/docs/product-requirements.md)
+- [REST API 문서](./backend/docs/openapi.yaml)
+- [WebSocket API 문서](./backend/docs/websocket-api.md)
 
 ## 👨‍💻 팀
 
@@ -78,7 +81,8 @@
 │ │  │ ├─ JWT         │  │  │                                   │  │          │ │
 │ │  │ └─ Socket.IO   │  │  │ ├─ GET /login, /register (SSR)    │  │          │ │
 │ │  └────────────────┘  │  │ ├─ POST /login, /register (Form)  │  │          │ │
-│ │                      │  │ ├─ GET /main, /solo, /multi (SSR) │  │          │ │
+│ │                      │  │ ├─ GET /main                      │  │          │ │
+│ │                      │  │ ├─ GET /solo, /multi (SSR)        │  │          │ │
 │ │  ┌────────────────┐  │  │ ├─ GET /ranking (SSR)             │  │          │ │
 │ │  │ Socket.IO      │  │  │ ├─ POST /api/auth/refresh         │  │          │ │
 │ │  │ Handlers       │  │  │ ├─ POST /api/rooms/create         │  │          │ │
