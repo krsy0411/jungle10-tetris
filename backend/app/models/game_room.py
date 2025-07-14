@@ -7,15 +7,13 @@ class GameRoom:
     """게임 방 모델"""
     
     def __init__(self, room_id=None, host_user_id=None, host_name=None, status='waiting', 
-                 participants=None, created_at=None, game_start_time=None, game_end_time=None):
+                 participants=None, created_at=None):
         self.room_id = room_id or str(uuid.uuid4())[:8]
         self.host_user_id = host_user_id
         self.host_name = host_name
         self.status = status  # 'waiting', 'playing', 'finished'
         self.participants = participants or []
         self.created_at = created_at or datetime.utcnow()
-        self.game_start_time = game_start_time
-        self.game_end_time = game_end_time
 
     def to_dict(self):
         """사전 형태로 변환"""
@@ -27,9 +25,7 @@ class GameRoom:
             'participants': self.participants,
             'participant_count': len(self.participants),
             'max_participants': 2,
-            'created_at': self.created_at,
-            'game_start_time': self.game_start_time,
-            'game_end_time': self.game_end_time
+            'created_at': self.created_at
         }
 
     def to_mongodb_doc(self):
@@ -41,9 +37,7 @@ class GameRoom:
             'host_name': self.host_name,
             'status': self.status,
             'participants': self.participants,
-            'created_at': self.created_at,
-            'game_start_time': self.game_start_time,
-            'game_end_time': self.game_end_time
+            'created_at': self.created_at
         }
 
     @staticmethod
@@ -58,9 +52,7 @@ class GameRoom:
             host_name=doc.get('host_name'),
             status=doc.get('status', 'waiting'),
             participants=doc.get('participants', []),
-            created_at=doc.get('created_at'),
-            game_start_time=doc.get('game_start_time'),
-            game_end_time=doc.get('game_end_time')
+            created_at=doc.get('created_at')
         )
 
     @staticmethod
@@ -115,14 +107,12 @@ class GameRoom:
             return False, "게임을 시작할 수 없는 상태입니다"
         
         self.status = 'playing'
-        self.game_start_time = datetime.utcnow()
         self.save()
         return True, "게임이 시작되었습니다"
 
     def end_game(self, scores=None):
         """게임 종료"""
         self.status = 'finished'
-        self.game_end_time = datetime.utcnow()
         
         if scores:
             for participant in self.participants:

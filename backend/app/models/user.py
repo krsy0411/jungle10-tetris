@@ -22,7 +22,6 @@ class User:
                  refresh_token_version=0, refresh_token_issued_at=None, last_login=None, is_active=True):
         self.user_id = user_id
         self.name = name
-        self.password = password
         self.hashed_password = hashed_password or (generate_password_hash(password) if password else None)
         self.created_at = created_at or datetime.utcnow()
         self.last_login = last_login
