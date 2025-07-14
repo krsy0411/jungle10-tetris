@@ -12,9 +12,14 @@
 
 ### 인증
 
-Socket.IO 연결 시 JWT 액세스 토큰을 통한 인증이 필요합니다.
+Socket.IO 연결 시 **쿠키 기반** JWT 액세스 토큰을 통한 인증이 필요합니다.
+쿠키에 `access_token`이 설정되어 있어야 하며, 연결 시 자동으로 검증됩니다.
 
 ```javascript
+// 쿠키에 JWT 토큰이 설정되어 있다면 추가 인증 정보 없이 연결 가능
+const socket = io("ws://localhost:8000");
+
+// 또는 fallback으로 auth 파라미터 사용 가능
 const socket = io("ws://localhost:8000", {
 	auth: {
 		token: "your_jwt_access_token_here",
@@ -27,7 +32,7 @@ const socket = io("ws://localhost:8000", {
 ### `connect`
 
 **Direction**: Server → Client  
-**Description**: 소켓 연결 성공
+**Description**: 소켓 연결 성공 (기본 Socket.IO 이벤트)
 
 ```javascript
 socket.on("connect", () => {
@@ -55,27 +60,11 @@ socket.on('connect_success', (data) => {
 ### `disconnect`
 
 **Direction**: Server → Client  
-**Description**: 소켓 연결 해제
+**Description**: 소켓 연결 해제 (기본 Socket.IO 이벤트)
 
 ```javascript
 socket.on("disconnect", (reason) => {
 	console.log("Disconnected:", reason);
-});
-```
-
-### `connect_success`
-
-**Direction**: Server → Client  
-**Description**: 인증 성공 후 연결 확인
-
-```javascript
-socket.on('connect_success', (data) => {
-  // data 구조
-  {
-    user_id: "user123",
-    name: "홍길동",
-    message: "서버에 연결되었습니다"
-  }
 });
 ```
 
@@ -89,7 +78,7 @@ socket.on("error", (error) => {
 	console.error("Socket error:", error);
 	// error 구조
 	{
-		type: "AUTH_ERROR" | "VALIDATION_ERROR" | "ROOM_NOT_FOUND" | "PERMISSION_DENIED" | "SERVER_ERROR",
+		type: "AUTH_ERROR" | "VALIDATION_ERROR" | "ROOM_NOT_FOUND" | "SERVER_ERROR",
 		message: "오류 메시지"
 	}
 });
@@ -100,41 +89,30 @@ socket.on("error", (error) => {
 ### `room:join`
 
 **Direction**: Client → Server  
-**Description**: 특정 방에 참가 (JWT 토큰 필요)
+**Description**: 특정 방에 참가 (쿠키 기반 JWT 인증)
 
 **Client Request**:
 
 ```javascript
 socket.emit("room:join", {
-	token: "your_jwt_access_token_here",
-	room_id: 123,
+	room_id: 123
 });
 ```
 
-**Server Broadcast** (방 내 모든 사용자에게):
-
-```javascript
-socket.on('room:join', (data) => {
-  // data 구조
-  {
-    room_id: 123,
-    user_name: "홍길동",
-    message: "홍길동님이 방에 참가했습니다"
-  }
-});
-```
+**특별 동작**: 
+- 방에 2명의 플레이어가 모이면 자동으로 `game:start` 이벤트가 브로드캐스트됩니다.
+- 인증은 쿠키의 `access_token`을 통해 자동으로 처리됩니다.
 
 ### `room:leave`
 
 **Direction**: Client → Server  
-**Description**: 방에서 나가기 (JWT 토큰 필요)
+**Description**: 방에서 나가기 (쿠키 기반 JWT 인증)
 
 **Client Request**:
 
 ```javascript
 socket.emit("room:leave", {
-	token: "your_jwt_access_token_here",
-	room_id: 123,
+	room_id: 123
 });
 ```
 
@@ -144,61 +122,21 @@ socket.emit("room:leave", {
 socket.on('room:leave', (data) => {
   // data 구조
   {
-    room_id: 123,
     user_name: "홍길동",
     message: "홍길동님이 방을 나갔습니다"
   }
 });
 ```
 
-### `room:update`
-
-**Direction**: Server → Client  
-**Description**: 방 정보 업데이트 (플레이어 변경, 상태 변경 등)
-
-```javascript
-socket.on('room:update', (data) => {
-  // data 구조
-  {
-    room_id: 123,
-    status: "waiting", // "waiting" | "playing" | "finished"
-    players: ["홍길동", "김철수"]
-  }
-});
-```
-
-### `room:player_joined`
-
-**Direction**: Server → Client  
-**Description**: 새 플레이어가 방에 참가했을 때 발생 (방 참가 후 자동 발생)
-
-```javascript
-socket.on('room:player_joined', (data) => {
-  // data 구조
-  {
-    room_id: 123,
-    user_name: "김철수",
-    players: ["홍길동", "김철수"],
-    message: "김철수님이 방에 참가했습니다"
-  }
-});
-```
+**특별 동작**:
+- 방을 나간 후 해당 클라이언트의 소켓 연결이 자동으로 끊어집니다.
 
 ## 게임 이벤트
 
 ### `game:start`
 
-**Direction**: Client → Server & Server → Client  
-**Description**: 게임 시작 (방장이 시작하거나 2명 참가 시 자동 시작)
-
-**Client Request** (방장이 수동으로 시작하는 경우):
-
-```javascript
-socket.emit("game:start", {
-	token: "your_jwt_access_token_here",
-	room_id: 123,
-});
-```
+**Direction**: Server → Client (자동 발생)  
+**Description**: 게임 시작 (방에 2명이 참가하면 자동으로 발생)
 
 **Server Broadcast** (방 내 모든 사용자에게):
 
@@ -206,10 +144,9 @@ socket.emit("game:start", {
 socket.on('game:start', (data) => {
   // data 구조
   {
-    room_id: 123,
     players: [
-      { name: "홍길동", score: 0 },
-      { name: "김철수", score: 0 }
+      { name: "홍길동", user_id: "user123", score: 0 },
+      { name: "김철수", user_id: "user456", score: 0 }
     ],
     game_time: 60  // 게임 시간 60초
   }
@@ -219,15 +156,14 @@ socket.on('game:start', (data) => {
 ### `game:score_update`
 
 **Direction**: Client ↔ Server  
-**Description**: 실시간 점수 업데이트 (JWT 토큰 필요)
+**Description**: 실시간 점수 업데이트 (쿠키 기반 JWT 인증)
 
 **Client Request** (점수 변경 시):
 
 ```javascript
 socket.emit("game:score_update", {
-	token: "your_jwt_access_token_here",
 	room_id: 123,
-	score: 1500,
+	score: 1500
 });
 ```
 
@@ -237,10 +173,9 @@ socket.emit("game:score_update", {
 socket.on('game:score_update', (data) => {
   // data 구조
   {
-    room_id: 123,
     players: [
-      { name: "홍길동", score: 1500 },
-      { name: "김철수", score: 800 }
+      { user_id: "user123", score: 1500 },
+      { user_id: "user456", score: 800 }
     ]
   }
 });
@@ -255,58 +190,45 @@ socket.on('game:score_update', (data) => {
 
 ```javascript
 socket.emit("game:end", {
-	token: "your_jwt_access_token_here",
 	room_id: 123,
-	score: 2500,
+	score: 2500
 });
 ```
 
-**Server Broadcast** (모든 플레이어 완료 시 방 내 모든 사용자에게):
+**Server Response**:
+
+#### 상대방 대기 중인 경우 (개인에게만 응답):
 
 ```javascript
 socket.on('game:end', (data) => {
   // data 구조
   {
     room_id: 123,
-    message: "게임이 종료되었습니다",
-    final_scores: {
-      "홍길동": 2500,
-      "김철수": 3200
-    },
-    winner: "김철수"
-  }
-});
-```
-
-### `game:waiting`
-
-**Direction**: Server → Client  
-**Description**: 상대방이 게임을 완료하기를 기다리는 중 (현재 사용자에게만 전송)
-
-```javascript
-socket.on('game:waiting', (data) => {
-  // data 구조
-  {
-    room_id: 123,
+    your_score: 2500,
+    all_finished: false,
     message: "상대방이 게임을 완료하기를 기다리는 중...",
-    your_score: 2500
+    status: "waiting"
   }
 });
 ```
 
-### `game:disconnect`
-
-**Direction**: Server → Client  
-**Description**: 상대방 연결 끊김 알림
+#### 모든 플레이어 완료 시 (방 내 모든 사용자에게 브로드캐스트):
 
 ```javascript
-socket.on('game:disconnect', (data) => {
+socket.on('game:end', (data) => {
   // data 구조
   {
     room_id: 123,
-    disconnected_player: "홍길동",
-    message: "상대방의 연결이 끊어졌습니다. 잠시 후 재연결을 시도합니다.",
-    wait_time: 30  // 재연결 대기 시간 (초)
+    your_score: 2500,
+    all_finished: true,
+    message: "게임이 종료되었습니다",
+    status: "finished",
+    final_scores: {
+      "user123": 2500,
+      "user456": 3200
+    },
+    winner: "user456",
+    is_draw: false
   }
 });
 ```
@@ -325,71 +247,42 @@ interface ServerToClientEvents {
 	}) => void;
 
 	error: (data: {
-		type:
-			| "AUTH_ERROR"
-			| "VALIDATION_ERROR"
-			| "ROOM_NOT_FOUND"
-			| "PERMISSION_DENIED"
-			| "SERVER_ERROR";
+		type: "AUTH_ERROR" | "VALIDATION_ERROR" | "ROOM_NOT_FOUND" | "SERVER_ERROR";
 		message: string;
 	}) => void;
 
 	// 방 관리
-	"room:join": (data: {
-		room_id: number;
-		user_name: string;
-		message: string;
-	}) => void;
-
 	"room:leave": (data: {
-		room_id: number;
 		user_name: string;
-		message: string;
-	}) => void;
-
-	"room:update": (data: {
-		room_id: number;
-		status: "waiting" | "playing" | "finished";
-		players: string[];
-	}) => void;
-
-	"room:player_joined": (data: {
-		room_id: number;
-		user_name: string;
-		players: string[];
 		message: string;
 	}) => void;
 
 	// 게임
 	"game:start": (data: {
-		room_id: number;
-		players: Array<{ name: string; score: number }>;
+		players: Array<{ 
+			name: string; 
+			user_id: string; 
+			score: number; 
+		}>;
 		game_time: number;
 	}) => void;
 
 	"game:score_update": (data: {
-		room_id: number;
-		players: Array<{ name: string; score: number }>;
+		players: Array<{ 
+			user_id: string; 
+			score: number; 
+		}>;
 	}) => void;
 
 	"game:end": (data: {
 		room_id: number;
-		message: string;
-		final_scores: Record<string, number>;
-		winner: string;
-	}) => void;
-
-	"game:waiting": (data: {
-		room_id: number;
-		message: string;
 		your_score: number;
-	}) => void;
-
-	"game:disconnect": (data: {
-		room_id: number;
-		disconnected_player: string;
+		all_finished: boolean;
 		message: string;
-		wait_time: number;
+		status: "waiting" | "finished";
+		final_scores?: Record<string, number>;
+		winner?: string;
+		is_draw?: boolean;
 	}) => void;
 }
 ```
@@ -399,17 +292,18 @@ interface ServerToClientEvents {
 ```typescript
 interface ClientToServerEvents {
 	// 방 관리
-	"room:join": (data: { token: string; room_id: number }) => void;
-	"room:leave": (data: { token: string; room_id: number }) => void;
+	"room:join": (data: { room_id: number }) => void;
+	"room:leave": (data: { room_id: number }) => void;
 
 	// 게임
-	"game:start": (data: { token: string; room_id: number }) => void;
 	"game:score_update": (data: {
-		token: string;
 		room_id: number;
 		score: number;
 	}) => void;
-	"game:end": (data: { token: string; room_id: number; score: number }) => void;
+	"game:end": (data: { 
+		room_id: number; 
+		score: number; 
+	}) => void;
 }
 ```
 
@@ -420,15 +314,17 @@ interface ClientToServerEvents {
 ```javascript
 import { io } from "socket.io-client";
 
-const socket = io("ws://localhost:8000", {
-	auth: {
-		token: localStorage.getItem("access_token"),
-	},
-});
+// JWT 토큰이 쿠키에 설정되어 있다면 추가 인증 정보 없이 연결
+const socket = io("ws://localhost:8000");
 
 // 연결 상태 관리
 socket.on("connect", () => {
 	console.log("서버에 연결되었습니다");
+});
+
+socket.on("connect_success", (data) => {
+	console.log(`${data.name}님, 환영합니다!`);
+	console.log(`사용자 ID: ${data.user_id}`);
 });
 
 socket.on("disconnect", () => {
@@ -437,10 +333,8 @@ socket.on("disconnect", () => {
 
 socket.on("error", (error) => {
 	console.error("소켓 오류:", error);
-	// 토큰 만료 등의 경우 localStorage에서 토큰 삭제 후 재로그인 처리
+	// 토큰 만료 등의 경우 재로그인 처리
 	if (error.type === "AUTH_ERROR") {
-		localStorage.removeItem("access_token");
-		localStorage.removeItem("refresh_token");
 		// 로그인 페이지로 리다이렉트
 		window.location.href = "/login";
 	}
@@ -452,39 +346,33 @@ socket.on("error", (error) => {
 ```javascript
 function joinRoom(roomId) {
 	socket.emit("room:join", {
-		token: localStorage.getItem("access_token"),
-		room_id: roomId,
+		room_id: roomId
 	});
 }
 
-// 방 참가 알림 수신
-socket.on("room:join", (data) => {
+// 방 나가기 알림 수신
+socket.on("room:leave", (data) => {
 	console.log(data.message);
+	// UI에서 해당 플레이어 제거
 });
 
-// 플레이어 참가 알림 수신
-socket.on("room:player_joined", (data) => {
-	console.log(data.message);
-	updatePlayerList(data.players);
+// 게임 자동 시작 수신 (2명 참가 시)
+socket.on("game:start", (data) => {
+	console.log("게임이 시작되었습니다!");
+	console.log("플레이어:", data.players);
+	startCountdown(data.game_time); // 60초 카운트다운 시작
+	initializeGame(data.players);
 });
 ```
 
 ### 게임 플레이
 
 ```javascript
-// 게임 시작 이벤트 수신
-socket.on("game:start", (data) => {
-	console.log("게임이 시작되었습니다!");
-	startCountdown(data.game_time); // 60초 카운트다운 시작
-	initializeGame(data.players);
-});
-
 // 점수 업데이트 전송
 function updateScore(roomId, newScore) {
 	socket.emit("game:score_update", {
-		token: localStorage.getItem("access_token"),
 		room_id: roomId,
-		score: newScore,
+		score: newScore
 	});
 }
 
@@ -496,20 +384,20 @@ socket.on("game:score_update", (data) => {
 // 게임 종료 처리
 function gameEnd(roomId, finalScore) {
 	socket.emit("game:end", {
-		token: localStorage.getItem("access_token"),
 		room_id: roomId,
-		score: finalScore,
+		score: finalScore
 	});
 }
 
 // 게임 종료 결과 수신
 socket.on("game:end", (data) => {
-	showGameResult(data.winner, data.final_scores);
-});
-
-// 대기 상태 수신
-socket.on("game:waiting", (data) => {
-	showWaitingMessage(data.message, data.your_score);
+	if (data.status === "waiting") {
+		// 상대방 대기 중
+		showWaitingMessage(data.message, data.your_score);
+	} else if (data.status === "finished") {
+		// 게임 완료
+		showGameResult(data.winner, data.final_scores, data.is_draw);
+	}
 });
 ```
 
@@ -522,8 +410,7 @@ socket.on("error", (error) => {
 	switch (error.type) {
 		case "AUTH_ERROR":
 			// JWT 토큰 만료 또는 유효하지 않음
-			localStorage.removeItem("access_token");
-			localStorage.removeItem("refresh_token");
+			console.error("인증 오류:", error.message);
 			redirectToLogin();
 			break;
 		case "ROOM_NOT_FOUND":
@@ -531,22 +418,25 @@ socket.on("error", (error) => {
 			showError("방을 찾을 수 없습니다");
 			break;
 		case "VALIDATION_ERROR":
-			// 유효성 검증 실패
+			// 유효성 검증 실패 (필수 파라미터 누락 등)
 			showError(error.message);
-			break;
-		case "PERMISSION_DENIED":
-			// 권한 없음 (예: 방장이 아닌데 게임 시작 시도)
-			showError("권한이 없습니다");
 			break;
 		case "SERVER_ERROR":
 			// 서버 내부 오류
-			showError("서버 오류가 발생했습니다");
+			showError("서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
 			break;
 		default:
 			showError("알 수 없는 오류가 발생했습니다");
 	}
 });
 ```
+
+### 주요 오류 시나리오
+
+1. **인증 실패**: 쿠키에 `access_token`이 없거나 만료된 경우
+2. **방 찾기 실패**: 존재하지 않는 `room_id`로 참가 시도
+3. **유효성 검증 실패**: 필수 파라미터 (`room_id`, `score` 등) 누락
+4. **서버 오류**: 데이터베이스 연결 실패, 예상치 못한 서버 에러
 
 ## 성능 최적화
 
@@ -560,9 +450,8 @@ import { throttle } from "lodash";
 // 점수 업데이트를 100ms마다 한 번만 전송
 const throttledScoreUpdate = throttle((roomId, score) => {
 	socket.emit("game:score_update", {
-		token: localStorage.getItem("access_token"),
 		room_id: roomId,
-		score: score,
+		score: score
 	});
 }, 100);
 ```
@@ -580,9 +469,28 @@ socket.on("disconnect", () => {
 });
 ```
 
+## 주요 구현 특징
+
+### 1. 쿠키 기반 인증
+- JWT 토큰을 쿠키의 `access_token`에서 자동으로 추출
+- 클라이언트에서 별도의 토큰 관리 불필요
+- Fallback으로 `auth.token` 파라미터도 지원
+
+### 2. 자동 게임 시작
+- 방에 2명이 참가하면 자동으로 `game:start` 이벤트 발생
+- 별도의 게임 시작 요청 불필요
+
+### 3. 통합된 게임 종료 처리
+- `game:end` 이벤트 하나로 대기/완료 상태 모두 처리
+- `status` 필드로 현재 상태 구분 (`waiting` | `finished`)
+
+### 4. 자동 연결 해제
+- 방을 나가면 해당 클라이언트의 소켓 연결 자동 해제
+- 리소스 정리 자동화
+
 ---
 
-**문서 버전**: 2.0  
-**작성일**: 2025년 7월 9일  
-**업데이트**: JWT 인증 기반으로 전면 개편, 새로운 이벤트 추가  
+**문서 버전**: 3.0  
+**작성일**: 2025년 7월 14일  
+**업데이트**: handlers.py 실제 구현에 맞게 전면 개편  
 **관련 문서**: product-requirements.md, openapi.yaml
